@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Awesome Blocks – Employee Recognition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════
+       LOGIN PAGE
+  ══════════════════════════════════════ -->
+  <div id="page-login" class="page active">
+    <div class="login-card">
+      <div class="logo">
+        <svg class="login-logo" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Element Three">
+          <rect x="1" y="1" width="30" height="38" rx="0" stroke="#2f4545" stroke-width="1.5" fill="none"/>
+          <rect x="6"  y="8"  width="19" height="3.5" fill="#2f4545"/>
+          <rect x="6"  y="15" width="14" height="3.5" fill="#2f4545"/>
+          <rect x="6"  y="22" width="19" height="3.5" fill="#2f4545"/>
+          <rect x="6"  y="29" width="10" height="3.5" fill="#2f4545"/>
+          <text x="42" y="27" font-family="Montserrat, Helvetica, Arial, sans-serif" font-weight="700" font-size="15" letter-spacing="2.5" fill="#2f4545">ELEMENT THREE</text>
+        </svg>
+        <h1>Awesome Blocks</h1>
+        <p>Employee Recognition Portal</p>
+      </div>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter team password" required />
+        </div>
+        <p id="login-error" class="error hidden">Incorrect password. Try again.</p>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MAIN APP SHELL
+  ══════════════════════════════════════ -->
+  <div id="app" class="hidden">
+
+    <!-- Nav -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <svg class="e3-logo" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Element Three">
+          <!-- Icon: stacked rectangles -->
+          <rect x="1" y="1" width="30" height="38" rx="0" stroke="white" stroke-width="1.5" fill="none"/>
+          <rect x="6"  y="8"  width="19" height="3.5" fill="white"/>
+          <rect x="6"  y="15" width="14" height="3.5" fill="white"/>
+          <rect x="6"  y="22" width="19" height="3.5" fill="white"/>
+          <rect x="6"  y="29" width="10" height="3.5" fill="white"/>
+          <!-- Wordmark -->
+          <text x="42" y="27" font-family="Montserrat, Helvetica, Arial, sans-serif" font-weight="700" font-size="15" letter-spacing="2.5" fill="white">ELEMENT THREE</text>
+        </svg>
+      </div>
+      <nav class="nav-links">
+        <button class="nav-btn active" data-page="page-give">Give Award</button>
+        <button class="nav-btn" data-page="page-feed">Feed</button>
+        <button class="nav-btn" data-page="page-dashboard">Dashboard</button>
+      </nav>
+      <button id="logout-btn" class="btn btn-ghost">Logout</button>
+    </header>
+
+    <!-- ── GIVE AWARD PAGE ── -->
+    <div id="page-give" class="page app-page active">
+      <div class="container">
+        <div class="page-header">
+          <h2>Give an Awesome Block</h2>
+          <p>Celebrate a teammate who embodies our values.</p>
+        </div>
+        <form id="award-form" class="card form-card">
+
+          <div class="form-row">
+            <div class="field">
+              <label for="giver">From (Your Name) <span class="req">*</span></label>
+              <select id="giver" required>
+                <option value="">Select your name…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="awardee">To (Recipient) <span class="req">*</span></label>
+              <select id="awardee" required>
+                <option value="">Select recipient…</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="company-value">Company Value <span class="req">*</span></label>
+            <select id="company-value" required>
+              <option value="">Select a value…</option>
+              <option value="Decide Business First">Decide Business First</option>
+              <option value="Hit the Mark">Hit the Mark</option>
+              <option value="Go For It">Go For It</option>
+              <option value="Make It Easy">Make It Easy</option>
+              <option value="Keep It Real">Keep It Real</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="award-message">Recognition Message <span class="req">*</span></label>
+            <textarea id="award-message" rows="4" maxlength="500"
+              placeholder="Describe what this person did and why it matters…" required></textarea>
+            <span class="char-count"><span id="char-remaining">500</span> characters remaining</span>
+          </div>
+
+          <p id="form-error" class="error hidden"></p>
+          <p id="form-success" class="success hidden"></p>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <span id="submit-label">Submit Award</span>
+              <span id="submit-spinner" class="spinner hidden"></span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Company Values Reference -->
+        <div class="values-reference">
+          <h3>Our Company Values</h3>
+          <div class="values-grid">
+            <div class="value-card">
+              <div class="value-name">Decide Business First</div>
+              <div class="value-tagline">Make the call that's best for the business, even when it's the hard one.</div>
+              <div class="value-desc">Take time to understand the business context and impact of your decisions. Consider the long game. Balance client goals, quality, and the good of the company.</div>
+            </div>
+            <div class="value-card">
+              <div class="value-name">Hit the Mark</div>
+              <div class="value-tagline">Understand the ask, align early, and deliver what actually matters.</div>
+              <div class="value-desc">Get clear on what is actually being asked and why. Align early, and focus where it matters most. Then meet the moment with the appropriate level of excellence.</div>
+            </div>
+            <div class="value-card">
+              <div class="value-name">Go For It</div>
+              <div class="value-tagline">See an opportunity or challenge? Take the shot and own the outcome.</div>
+              <div class="value-desc">Take initiative, start the thing, ask for the opportunity. Move forward with good judgment and take responsibility for the result.</div>
+            </div>
+            <div class="value-card">
+              <div class="value-name">Make It Easy</div>
+              <div class="value-tagline">Remove friction so great work can happen.</div>
+              <div class="value-desc">Do the hard thinking upfront so working together feels easy. Simplify decisions, remove friction, and make it easier for clients and teammates to do their best work.</div>
+            </div>
+            <div class="value-card">
+              <div class="value-name">Keep It Real</div>
+              <div class="value-tagline">Be honest, authentic, and kind.</div>
+              <div class="value-desc">We take our work seriously while keeping things human and fun. Communicate honestly and directly. Surface issues before they become problems — no posturing or politics.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── FEED PAGE ── -->
+    <div id="page-feed" class="page app-page hidden">
+      <div class="container">
+        <div class="page-header">
+          <h2>Recognition Feed</h2>
+          <p>See who's been celebrated recently.</p>
+        </div>
+
+        <div class="feed-controls">
+          <input type="text" id="feed-search" placeholder="Search by name or value…" />
+          <select id="feed-filter-value">
+            <option value="">All Values</option>
+            <option value="Decide Business First">Decide Business First</option>
+            <option value="Hit the Mark">Hit the Mark</option>
+            <option value="Go For It">Go For It</option>
+            <option value="Make It Easy">Make It Easy</option>
+            <option value="Keep It Real">Keep It Real</option>
+          </select>
+        </div>
+
+        <div id="feed-list" class="feed-list">
+          <p class="empty-state">No recognitions yet. Be the first to give an award!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DASHBOARD PAGE ── -->
+    <div id="page-dashboard" class="page app-page hidden">
+      <div class="container">
+        <div class="page-header">
+          <h2>Recognition Dashboard</h2>
+          <p>Insights into team appreciation.</p>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="stat-total">0</div>
+            <div class="stat-label">Total Awards</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-this-month">0</div>
+            <div class="stat-label">This Month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-givers">0</div>
+            <div class="stat-label">Unique Givers</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-awardees">0</div>
+            <div class="stat-label">People Recognized</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <!-- Top Recipients -->
+          <div class="card">
+            <h3>Top Recipients</h3>
+            <div id="chart-top-recipients" class="bar-chart"></div>
+          </div>
+
+          <!-- Awards by Value -->
+          <div class="card">
+            <h3>Awards by Company Value</h3>
+            <div id="chart-by-value" class="bar-chart"></div>
+          </div>
+
+          <!-- Top Givers -->
+          <div class="card">
+            <h3>Top Givers</h3>
+            <div id="chart-top-givers" class="bar-chart"></div>
+          </div>
+
+          <!-- Monthly Trend -->
+          <div class="card">
+            <h3>Monthly Trend</h3>
+            <div id="chart-monthly" class="bar-chart"></div>
+          </div>
+        </div>
+
+        <div class="card recent-table-card">
+          <h3>All Submissions</h3>
+          <div class="table-wrapper">
+            <table id="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Value</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /app -->
+
+  <script src="script.js"></script>
+</body>
+</html>
