@@ -6,7 +6,7 @@
   <title>Awesome Blocks – Employee Recognition</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -17,14 +17,7 @@
   <div id="page-login" class="page active">
     <div class="login-card">
       <div class="logo">
-        <svg class="login-logo" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Element Three">
-          <rect x="1" y="1" width="30" height="38" rx="0" stroke="#2f4545" stroke-width="1.5" fill="none"/>
-          <rect x="6"  y="8"  width="19" height="3.5" fill="#2f4545"/>
-          <rect x="6"  y="15" width="14" height="3.5" fill="#2f4545"/>
-          <rect x="6"  y="22" width="19" height="3.5" fill="#2f4545"/>
-          <rect x="6"  y="29" width="10" height="3.5" fill="#2f4545"/>
-          <text x="42" y="27" font-family="Montserrat, Helvetica, Arial, sans-serif" font-weight="700" font-size="15" letter-spacing="2.5" fill="#2f4545">ELEMENT THREE</text>
-        </svg>
+        <img src="Element-Three-Logo-secondary-slate.png" alt="Element Three" class="login-logo" />
         <h1>Awesome Blocks</h1>
         <p>Employee Recognition Portal</p>
       </div>
@@ -47,21 +40,13 @@
     <!-- Nav -->
     <header class="top-nav">
       <div class="nav-brand">
-        <svg class="e3-logo" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Element Three">
-          <!-- Icon: stacked rectangles -->
-          <rect x="1" y="1" width="30" height="38" rx="0" stroke="white" stroke-width="1.5" fill="none"/>
-          <rect x="6"  y="8"  width="19" height="3.5" fill="white"/>
-          <rect x="6"  y="15" width="14" height="3.5" fill="white"/>
-          <rect x="6"  y="22" width="19" height="3.5" fill="white"/>
-          <rect x="6"  y="29" width="10" height="3.5" fill="white"/>
-          <!-- Wordmark -->
-          <text x="42" y="27" font-family="Montserrat, Helvetica, Arial, sans-serif" font-weight="700" font-size="15" letter-spacing="2.5" fill="white">ELEMENT THREE</text>
-        </svg>
+        <img src="Element-Three-Logo-secondary-slate.png" alt="Element Three" class="e3-logo" />
       </div>
       <nav class="nav-links">
         <button class="nav-btn active" data-page="page-give">Give Award</button>
         <button class="nav-btn" data-page="page-feed">Feed</button>
         <button class="nav-btn" data-page="page-dashboard">Dashboard</button>
+        <button class="nav-btn nav-btn-settings" data-page="page-admin" title="Team Settings">Settings</button>
       </nav>
       <button id="logout-btn" class="btn btn-ghost">Logout</button>
     </header>
@@ -119,6 +104,13 @@
             </button>
           </div>
         </form>
+
+        <!-- Thank-you state (shown after submission) -->
+        <div id="thank-you-card" class="card form-card thank-you-card hidden">
+          <h3 class="thank-you-heading">Awesome Block Sent!</h3>
+          <p class="thank-you-subtext" id="thank-you-subtext"></p>
+          <button class="btn btn-primary" id="give-another-btn">Give Another Award</button>
+        </div>
 
         <!-- Company Values Reference -->
         <div class="values-reference">
@@ -189,30 +181,73 @@
           <p>Insights into team appreciation.</p>
         </div>
 
-        <!-- Stats Row -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-number" id="stat-total">0</div>
-            <div class="stat-label">Total Awards</div>
+        <!-- Import Row -->
+        <div class="import-row">
+          <span class="import-row-label">Import data:</span>
+          <button id="import-points-btn" class="btn-import">↑ Points Balance</button>
+          <button id="import-submissions-btn" class="btn-import">↑ Awesome Block Submissions</button>
+          <input type="file" id="import-points-file" accept=".csv" class="hidden" />
+          <input type="file" id="import-submissions-file" accept=".csv" class="hidden" />
+          <span id="import-status" class="import-status hidden"></span>
+        </div>
+
+        <!-- Person Cards -->
+        <div class="person-cards-grid">
+
+          <!-- Received Card -->
+          <div class="card person-card person-card-received">
+            <div class="person-card-title">Awards Received By</div>
+            <select id="filter-received-by">
+              <option value="">Everyone</option>
+            </select>
+            <div class="mini-stats">
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-received">0</div>
+                <div class="mini-stat-label">Received</div>
+              </div>
+              <div class="mini-stat mini-stat-points">
+                <div class="mini-stat-number" id="stat-points">0</div>
+                <div class="mini-stat-label">Points</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-received-month">0</div>
+                <div class="mini-stat-label">This Month</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-recognized-by">0</div>
+                <div class="mini-stat-label">Recognized By</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-this-month">0</div>
-            <div class="stat-label">This Month</div>
+
+          <!-- Given Card -->
+          <div class="card person-card person-card-given">
+            <div class="person-card-title">Awards Given By</div>
+            <select id="filter-given-by">
+              <option value="">Everyone</option>
+            </select>
+            <div class="mini-stats">
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-given">0</div>
+                <div class="mini-stat-label">Given</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-given-month">0</div>
+                <div class="mini-stat-label">This Month</div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-stat-number" id="stat-recognized">0</div>
+                <div class="mini-stat-label">People Recognized</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-givers">0</div>
-            <div class="stat-label">Unique Givers</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-awardees">0</div>
-            <div class="stat-label">People Recognized</div>
-          </div>
+
         </div>
 
         <div class="charts-grid">
           <!-- Top Recipients -->
           <div class="card">
-            <h3>Top Recipients</h3>
+            <h3 id="chart-recipients-title">Top Recipients</h3>
             <div id="chart-top-recipients" class="bar-chart"></div>
           </div>
 
@@ -224,7 +259,7 @@
 
           <!-- Top Givers -->
           <div class="card">
-            <h3>Top Givers</h3>
+            <h3 id="chart-givers-title">Top Givers</h3>
             <div id="chart-top-givers" class="bar-chart"></div>
           </div>
 
@@ -235,8 +270,30 @@
           </div>
         </div>
 
+        <!-- Table Controls -->
+        <div class="table-controls">
+          <select id="filter-value">
+            <option value="">All values</option>
+            <option value="Decide Business First">Decide Business First</option>
+            <option value="Hit the Mark">Hit the Mark</option>
+            <option value="Go For It">Go For It</option>
+            <option value="Make It Easy">Make It Easy</option>
+            <option value="Keep It Real">Keep It Real</option>
+          </select>
+          <div class="date-range-wrapper" id="date-range-wrapper">
+            <div class="date-range-input" id="date-range-input" role="button" tabindex="0">
+              <span id="date-range-display">Date Range</span>
+              <span class="date-range-chevron">▾</span>
+            </div>
+          </div>
+          <button id="dashboard-reset-btn" class="table-controls-reset hidden">Clear filters</button>
+          <button id="download-csv-btn" class="btn-csv">↓ CSV</button>
+        </div>
+
         <div class="card recent-table-card">
-          <h3>All Submissions</h3>
+          <div class="table-header">
+            <h3 id="table-title">All Awesome Block Submissions</h3>
+          </div>
           <div class="table-wrapper">
             <table id="dashboard-table">
               <thead>
@@ -252,6 +309,79 @@
             </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS / ADMIN PAGE ── -->
+    <div id="page-admin" class="page app-page hidden">
+      <div class="container">
+        <div class="page-header">
+          <h2>Team Settings</h2>
+          <p>Manage team members, emails, and reporting structure. No code editing needed.</p>
+        </div>
+
+        <!-- Admin password gate -->
+        <div id="admin-gate" class="card admin-gate-card">
+          <h3 class="admin-gate-heading">Admin Access Required</h3>
+          <p class="admin-note">This page is restricted. Enter the admin password to continue.</p>
+          <form id="admin-gate-form" class="admin-gate-form">
+            <input type="password" id="admin-gate-password" placeholder="Admin password" autocomplete="off" />
+            <button type="submit" class="btn btn-primary">Unlock</button>
+          </form>
+          <p id="admin-gate-error" class="error hidden">Incorrect password.</p>
+        </div>
+
+        <!-- Settings content (shown after auth) -->
+        <div id="admin-content" class="hidden">
+
+        <!-- Pending Approvals -->
+        <div class="card admin-card" id="pending-queue-card">
+          <div class="admin-section-header">
+            <h3 class="admin-section-title">Pending Approvals <span id="pending-badge" class="pending-badge hidden"></span></h3>
+          </div>
+          <p class="admin-note">Review and approve or reject each submission before it appears on the feed and triggers email notifications.</p>
+          <div id="pending-list"></div>
+        </div>
+
+        <!-- Awesome Block Admin -->
+        <div class="card admin-card">
+          <h3 class="admin-section-title">Awesome Block Admin</h3>
+          <p class="admin-note">This person receives milestone emails and is always CC'd on award notifications.</p>
+          <select id="admin-talent-head" class="admin-talent-select">
+            <option value="">Select person…</option>
+          </select>
+        </div>
+
+        <!-- Team Members -->
+        <div class="card admin-card">
+          <div class="admin-section-header">
+            <h3 class="admin-section-title">Team Members</h3>
+            <button id="admin-add-btn" class="btn-import">+ Add Member</button>
+          </div>
+          <p class="admin-note">
+            Emails are used for award notifications. The recipient's manager is CC'd when they receive an award.
+            <strong>Click Save Changes when done.</strong>
+          </p>
+          <div class="table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Work Email</th>
+                  <th>Manager</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="admin-tbody"></tbody>
+            </table>
+          </div>
+          <div class="admin-footer">
+            <button id="admin-save-btn" class="btn btn-primary">Save Changes</button>
+            <span id="admin-save-status" class="import-status hidden"></span>
+          </div>
+        </div>
+
+        </div><!-- /admin-content -->
       </div>
     </div>
 
