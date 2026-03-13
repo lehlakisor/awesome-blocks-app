@@ -13,11 +13,56 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize tables
+const TEAM_MEMBERS = [
+  'Abby Hines', 'Allison Hunt', 'Amy Burklow', 'Ashley Booth', 'Bennett Clark',
+  'Brian Cole', 'Cade Jones', 'Carrie Marsteller', 'Charlie May', 'Colton Angel',
+  'Dom Dippel', 'Elijah VanDine', 'Heather Hoerr', 'Jess Ferguson', 'JoAnna Keilman',
+  'John Gough', 'Karen Seketa', 'Kay Manary', 'Kayla Searles', 'Kyler Mason',
+  'Lehla Kisor', 'Madie Lutzke', 'Noah Gregg', 'Rachel Young', 'Reid Morris',
+  'Roman Smith', 'Sarah Riggio', 'Steven Hileman', 'Theresa Behrens Goodall',
+  'Tiffany Sauder', 'Victoria Shaw',
+];
+
+const SEED_POINTS = {
+  'Colton Angel': 100, 'Ashley Booth': 570, 'Amy Burklow': 735, 'Bennett Clark': 475,
+  'Brian Cole': 810, 'Jess Ferguson': 1130, 'Theresa Behrens Goodall': 965,
+  'John Gough': 300, 'Noah Gregg': 595, 'Heather Hoerr': 5, 'Steven Hileman': 30,
+  'Abby Hines': 595, 'Allison Hunt': 75, 'Cade Jones': 610, 'JoAnna Keilman': 10,
+  'Madie Lutzke': 220, 'Carrie Marsteller': 1060, 'Kyler Mason': 290,
+  'Charlie May': 5, 'Reid Morris': 705, 'Sarah Riggio': 195, 'Kayla Searles': 585,
+  'Karen Seketa': 140, 'Victoria Shaw': 260, 'Roman Smith': 55, 'Rachel Young': 275,
+};
+
+// Initialize tables and seed if empty
 async function initDb() {
   const fs = require('fs');
   const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf8');
   await pool.query(schema);
+
+  // Seed team config if empty
+  const configResult = await pool.query('SELECT id FROM team_config WHERE id = 1');
+  if (!configResult.rows.length) {
+    const defaultConfig = {
+      members: TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
+      adminRoles: [],
+    };
+    await pool.query(
+      'INSERT INTO team_config (id, data) VALUES (1, $1)',
+      [JSON.stringify(defaultConfig)]
+    );
+    console.log('Seeded team config with', TEAM_MEMBERS.length, 'members.');
+  }
+
+  // Seed points ledger if empty
+  const ledgerResult = await pool.query('SELECT COUNT(*) FROM points_ledger');
+  if (parseInt(ledgerResult.rows[0].count) === 0) {
+    const entries = Object.entries(SEED_POINTS);
+    if (entries.length) {
+      const values = entries.map((_, i) => `($${i*2+1}, $${i*2+2})`).join(', ');
+      await pool.query(`INSERT INTO points_ledger (name, points) VALUES ${values}`, entries.flat());
+      console.log('Seeded points ledger for', entries.length, 'people.');
+    }
+  }
 }
 
 /* ── TEAM CONFIG ── */
