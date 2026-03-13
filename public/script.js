@@ -645,16 +645,17 @@ function renderAdminGate() {
 
 function renderAdminPage() {
   renderPendingQueue();
-  const config  = getTeamConfig();
-  const members = config.members;
-  const names   = members.map(m => m.name).filter(Boolean);
+  const config       = getTeamConfig();
+  const members      = config.members;
+  const names        = members.map(m => m.name).filter(Boolean);
+  const currentNames = members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean);
 
   // Admin roles table
   const rolesTbody = document.getElementById('admin-roles-tbody');
   const adminRoles = config.adminRoles || [];
   if (adminRoles.length) {
     rolesTbody.innerHTML = adminRoles.map(a => {
-      const nameOpts = names
+      const nameOpts = currentNames
         .map(n => `<option value="${escHtml(n)}" ${n === a.name ? 'selected' : ''}>${escHtml(n)}</option>`)
         .join('');
       return `
@@ -1614,7 +1615,7 @@ async function init() {
   });
 
   document.getElementById('admin-add-role-btn').addEventListener('click', () => {
-    const names    = getTeamMemberNames();
+    const names    = getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean);
     const nameOpts = names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
     const tr       = document.createElement('tr');
     tr.innerHTML = `
