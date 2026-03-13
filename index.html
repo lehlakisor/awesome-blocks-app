@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -21,12 +22,22 @@
         <h1>Awesome Blocks</h1>
         <p>Employee Recognition Portal</p>
       </div>
+      <!-- Google Sign-In (shown when GOOGLE_CLIENT_ID is configured) -->
+      <div id="google-signin-section" class="hidden">
+        <p class="login-google-prompt">Sign in with your Element Three Google account.</p>
+        <div id="google-signin-btn" class="google-btn-wrap"></div>
+        <p id="google-login-error" class="error hidden"></p>
+      </div>
+
+      <!-- Name picker fallback (used locally before Google is configured) -->
       <form id="login-form">
         <div class="field">
-          <label for="login-password">Password</label>
-          <input type="password" id="login-password" placeholder="Enter team password" required />
+          <label for="login-name">Who are you?</label>
+          <select id="login-name" required>
+            <option value="">Select your name…</option>
+          </select>
         </div>
-        <p id="login-error" class="error hidden">Incorrect password. Try again.</p>
+        <p id="login-error" class="error hidden">Please select your name.</p>
         <button type="submit" class="btn btn-primary btn-full">Sign In</button>
       </form>
     </div>
@@ -48,7 +59,8 @@
         <button class="nav-btn" data-page="page-dashboard">Dashboard</button>
         <button class="nav-btn nav-btn-settings" data-page="page-admin" title="Team Settings">Settings</button>
       </nav>
-      <button id="logout-btn" class="btn btn-ghost">Logout</button>
+      <span id="current-user-display" class="nav-current-user"></span>
+      <button id="logout-btn" class="btn btn-ghost">Sign Out</button>
     </header>
 
     <!-- ── GIVE AWARD PAGE ── -->
@@ -60,19 +72,11 @@
         </div>
         <form id="award-form" class="card form-card">
 
-          <div class="form-row">
-            <div class="field">
-              <label for="giver">From (Your Name) <span class="req">*</span></label>
-              <select id="giver" required>
-                <option value="">Select your name…</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="awardee">To (Recipient) <span class="req">*</span></label>
-              <select id="awardee" required>
-                <option value="">Select recipient…</option>
-              </select>
-            </div>
+          <div class="field">
+            <label for="awardee">To (Recipient) <span class="req">*</span></label>
+            <select id="awardee" required>
+              <option value="">Select recipient…</option>
+            </select>
           </div>
 
           <div class="field">
@@ -280,10 +284,27 @@
             <option value="Make It Easy">Make It Easy</option>
             <option value="Keep It Real">Keep It Real</option>
           </select>
-          <div class="date-range-wrapper" id="date-range-wrapper">
-            <div class="date-range-input" id="date-range-input" role="button" tabindex="0">
-              <span id="date-range-display">Date Range</span>
-              <span class="date-range-chevron">▾</span>
+          <div class="date-presets-wrapper">
+            <div class="date-presets" id="date-presets">
+              <button class="date-preset-btn" data-preset="7">Last 7 days</button>
+              <button class="date-preset-btn" data-preset="30">Last 30 days</button>
+              <button class="date-preset-btn" data-preset="this-month">This month</button>
+              <button class="date-preset-btn" data-preset="last-month">Last month</button>
+              <button class="date-preset-btn" data-preset="custom-range" id="custom-range-btn">Custom range ▾</button>
+            </div>
+            <div id="cal-popover" class="cal-popover hidden">
+              <div class="cal-main">
+                <div class="cal-header">
+                  <button class="cal-nav" id="cal-prev" type="button">&#8249;</button>
+                  <span class="cal-month-label" id="cal-month-label"></span>
+                  <button class="cal-nav" id="cal-next" type="button">&#8250;</button>
+                </div>
+                <div class="cal-weekdays">
+                  <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="cal-days" id="cal-days-grid"></div>
+                <div class="cal-range-hint" id="cal-range-hint">Click a start date</div>
+              </div>
             </div>
           </div>
           <button id="dashboard-reset-btn" class="table-controls-reset hidden">Clear filters</button>
@@ -343,13 +364,32 @@
           <div id="pending-list"></div>
         </div>
 
-        <!-- Awesome Block Admin -->
+        <!-- Admin Roles -->
         <div class="card admin-card">
-          <h3 class="admin-section-title">Awesome Block Admin</h3>
-          <p class="admin-note">This person receives milestone emails and is always CC'd on award notifications.</p>
-          <select id="admin-talent-head" class="admin-talent-select">
-            <option value="">Select person…</option>
-          </select>
+          <div class="admin-section-header">
+            <h3 class="admin-section-title">Admin Roles</h3>
+            <button id="admin-add-role-btn" class="btn-import" type="button">+ Add Admin</button>
+          </div>
+          <p class="admin-note">
+            <strong>Admin:</strong> receives pending submission notifications, is CC'd on all approved award emails, and gets milestone emails.<br>
+            <strong>Finance:</strong> receives cash bonus emails when a recipient crosses point thresholds tied to cash awards (300 pts / $100 &bull; 500 pts / $150 &bull; 750 pts / $200 &bull; 1000 pts / $250).
+          </p>
+          <div class="table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="admin-roles-tbody"></tbody>
+            </table>
+          </div>
+          <div class="admin-footer">
+            <button id="admin-roles-save-btn" class="btn btn-primary">Save Changes</button>
+            <span id="admin-roles-save-status" class="import-status hidden"></span>
+          </div>
         </div>
 
         <!-- Team Members -->
@@ -369,6 +409,7 @@
                   <th>Name</th>
                   <th>Work Email</th>
                   <th>Manager</th>
+                  <th>Status</th>
                   <th></th>
                 </tr>
               </thead>

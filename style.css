@@ -100,6 +100,18 @@ html, body {
   text-transform: uppercase;
 }
 
+.login-google-prompt {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.google-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
 /* ═══════════════════════════════════════════
    NAVIGATION
    ═══════════════════════════════════════════ */
@@ -312,6 +324,14 @@ textarea { resize: vertical; min-height: 100px; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
 .btn-full { width: 100%; justify-content: center; }
+
+.nav-current-user {
+  color: rgba(255,255,255,.65);
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: 8px;
+  white-space: nowrap;
+}
 
 .btn-ghost {
   background: none;
@@ -729,10 +749,11 @@ textarea { resize: vertical; min-height: 100px; }
   transition: border-color 0.15s;
 }
 .admin-input:focus { outline: none; border-color: var(--charcoal); }
-.admin-table td:nth-child(1) { width: 22%; }
-.admin-table td:nth-child(2) { width: 30%; }
-.admin-table td:nth-child(3) { width: 26%; }
-.admin-table td:nth-child(4) { width: 40px; }
+.admin-table td:nth-child(1) { width: 20%; }
+.admin-table td:nth-child(2) { width: 26%; }
+.admin-table td:nth-child(3) { width: 22%; }
+.admin-table td:nth-child(4) { width: 110px; }
+.admin-table td:nth-child(5) { width: 40px; }
 .admin-remove-btn {
   background: none;
   border: none;
@@ -893,41 +914,40 @@ textarea { resize: vertical; min-height: 100px; }
 .import-status.import-ok    { color: #2a9d3e; }
 .import-status.import-error { color: var(--red); }
 
-/* ── Date Range Picker ── */
-.date-range-wrapper {
-  position: relative;
-  min-width: 240px;
-  flex: 1;
+/* ── Date Presets ── */
+.date-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.date-range-input {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 12px;
+.date-preset-btn {
+  background: none;
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  background: var(--white);
-  cursor: pointer;
-  font-size: 14px;
+  padding: 8px 14px;
   font-family: var(--font-body);
-  font-weight: 500;
-  color: var(--text-muted);
-  transition: border-color var(--transition);
-  user-select: none;
-  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--charcoal-2);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.date-preset-btn:hover {
+  border-color: var(--charcoal);
+  color: var(--charcoal);
+}
+.date-preset-btn.active {
+  background: var(--charcoal);
+  border-color: var(--charcoal);
+  color: var(--chartreuse);
 }
 
-.date-range-input:hover,
-.date-range-input.open { border-color: var(--charcoal); }
-
-#date-range-display { flex: 1; }
-#date-range-display.has-value { color: var(--text); }
-
-.date-range-chevron {
-  font-size: 11px;
-  color: var(--text-muted);
-  flex-shrink: 0;
+.date-presets-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .cal-popover {
@@ -939,7 +959,7 @@ textarea { resize: vertical; min-height: 100px; }
   border: 1.5px solid var(--border);
   box-shadow: var(--shadow-lg);
   display: flex;
-  min-width: 440px;
+  width: 280px;
 }
 
 .cal-presets {
@@ -1066,6 +1086,15 @@ textarea { resize: vertical; min-height: 100px; }
 .cal-day-hover {
   outline: 1.5px dashed var(--charcoal);
   outline-offset: -2px;
+}
+
+.cal-range-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 10px 0 2px;
+  letter-spacing: .04em;
 }
 
 /* Charts */

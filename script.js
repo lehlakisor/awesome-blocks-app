@@ -11,6 +11,12 @@ const CONFIG = {
   // Separate password to access the Settings page (share only with HR/admins)
   ADMIN_PASSWORD: 'e3admin',
 
+  // Google OAuth Client ID for sign-in.
+  // Get one at console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client ID.
+  // Add your domain (e.g. https://awesome.elementthree.com) to Authorized JavaScript Origins.
+  // Leave as 'YOUR_GOOGLE_CLIENT_ID_HERE' to fall back to the name-picker login during local dev.
+  GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID_HERE',
+
   // Paste your Google Apps Script web app URL here (see setup instructions).
   // This single URL handles both submission logging and milestone emails.
   GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbynhKUt8irMs2HjratCFnAfgaUvd_zzS13hhDaBXhJknsTvIe8zjOQ6SKNmZpBJ-37A/exec',
@@ -123,6 +129,17 @@ function savePointsLedger(ledger) {
   localStorage.setItem('ab_points_ledger', JSON.stringify(ledger));
 }
 
+function loadCashMilestones() {
+  try {
+    const raw = localStorage.getItem('ab_cash_milestones');
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveCashMilestones(milestones) {
+  localStorage.setItem('ab_cash_milestones', JSON.stringify(milestones));
+}
+
 /* ═══════════════════════════════════════════
    CSV PARSER
    ═══════════════════════════════════════════ */
@@ -173,16 +190,27 @@ function parseImportDate(str) {
 function getTeamConfig() {
   try {
     const raw = localStorage.getItem('ab_team_config');
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const config = JSON.parse(raw);
+      // Migrate from old single talentHead string to adminRoles array
+      if (!config.adminRoles) {
+        config.adminRoles = config.talentHead
+          ? [{ name: config.talentHead, role: 'admin' }]
+          : [];
+        delete config.talentHead;
+        saveTeamConfig(config);
+      }
+      return config;
+    }
     // Seed from hardcoded list on first load
     const def = {
       members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
-      talentHead: '',
+      adminRoles: [],
     };
     saveTeamConfig(def);
     return def;
   } catch {
-    return { members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })), talentHead: '' };
+    return { members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })), adminRoles: [] };
   }
 }
 
@@ -194,21 +222,98 @@ function getTeamMemberNames() {
   return getTeamConfig().members.map(m => m.name).filter(Boolean).sort();
 }
 
+function getFormerMemberNames() {
+  return new Set(
+    getTeamConfig().members
+      .filter(m => m.status === 'former')
+      .map(m => m.name)
+  );
+}
+
+// Returns array of { name, role, email } for admins matching the given role (or all if role is omitted)
+function getAdminsByRole(role) {
+  const config = getTeamConfig();
+  return (config.adminRoles || [])
+    .filter(a => !role || a.role === role)
+    .map(a => {
+      const member = config.members.find(m => m.name === a.name) || {};
+      return { name: a.name, role: a.role, email: member.email || '' };
+    });
+}
+
 /* ═══════════════════════════════════════════
    AUTH
    ═══════════════════════════════════════════ */
 function isLoggedIn() {
-  return sessionStorage.getItem('ab_auth') === 'true';
+  return !!sessionStorage.getItem('ab_current_user');
 }
 
-function login() {
-  sessionStorage.setItem('ab_auth', 'true');
+function getCurrentUser() {
+  return sessionStorage.getItem('ab_current_user') || '';
+}
+
+function login(name) {
+  sessionStorage.setItem('ab_current_user', name);
   showApp();
 }
 
 function logout() {
-  sessionStorage.removeItem('ab_auth');
+  sessionStorage.removeItem('ab_current_user');
+  if (typeof google !== 'undefined' && google.accounts) {
+    google.accounts.id.disableAutoSelect();
+  }
   showLogin();
+}
+
+/* ═══════════════════════════════════════════
+   GOOGLE SIGN-IN
+   ═══════════════════════════════════════════ */
+function handleGoogleSignIn(response) {
+  try {
+    // Decode the JWT payload (middle segment, base64url encoded)
+    const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const email = payload.email;
+    const config = getTeamConfig();
+    const member = config.members.find(
+      m => m.email && m.email.toLowerCase() === email.toLowerCase() && m.status !== 'former'
+    );
+    if (member) {
+      login(member.name);
+    } else {
+      const errEl = document.getElementById('google-login-error');
+      errEl.textContent = `Your Google account (${email}) isn't linked to a team member. Ask an admin to add your email in Team Settings.`;
+      errEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    console.error('Google sign-in error:', e);
+  }
+}
+
+function setupGoogleSignIn(clientId) {
+  google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleSignIn,
+    auto_select: true,
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('google-signin-btn'),
+    { theme: 'outline', size: 'large', width: 280, text: 'signin_with' }
+  );
+  google.accounts.id.prompt();
+}
+
+function initGoogleSignIn() {
+  const clientId = CONFIG.GOOGLE_CLIENT_ID;
+  if (!clientId || clientId === 'YOUR_GOOGLE_CLIENT_ID_HERE') return;
+
+  document.getElementById('google-signin-section').classList.remove('hidden');
+  document.getElementById('login-form').classList.add('hidden');
+
+  if (typeof google !== 'undefined' && google.accounts) {
+    setupGoogleSignIn(clientId);
+  } else {
+    window.onGoogleLibraryLoad = () => setupGoogleSignIn(clientId);
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -224,6 +329,8 @@ function showApp() {
   document.getElementById('page-login').classList.remove('active');
   document.getElementById('page-login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
+  const name = getCurrentUser();
+  document.getElementById('current-user-display').textContent = name ? `Hi, ${name.split(' ')[0]}` : '';
   navigateTo('page-give');
 }
 
@@ -254,20 +361,16 @@ function navigateTo(targetId) {
    POPULATE DROPDOWNS
    ═══════════════════════════════════════════ */
 function populateTeamDropdowns() {
-  const giverSel   = document.getElementById('giver');
-  const awardeeSel = document.getElementById('awardee');
-  const names = getTeamMemberNames();
+  const awardeeSel  = document.getElementById('awardee');
+  const currentUser = getCurrentUser();
+  const names       = getTeamMemberNames().filter(n => n !== currentUser);
 
-  giverSel.innerHTML   = '<option value="">Select your name…</option>';
   awardeeSel.innerHTML = '<option value="">Select recipient…</option>';
-
   names.forEach(name => {
-    [giverSel, awardeeSel].forEach(sel => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    awardeeSel.appendChild(opt);
   });
 }
 
@@ -290,7 +393,7 @@ function initCharCounter() {
 async function handleAwardSubmit(e) {
   e.preventDefault();
 
-  const giver   = document.getElementById('giver').value;
+  const giver   = getCurrentUser();
   const awardee = document.getElementById('awardee').value;
   const value   = document.getElementById('company-value').value;
   const message = document.getElementById('award-message').value.trim();
@@ -422,7 +525,7 @@ function handleSubmissionsImport(file) {
       const dateStr = row['date'] || '';
       const ts      = parseImportDate(dateStr) || new Date().toISOString();
 
-      STATE.submissions.push({ id: Date.now() + i, timestamp: ts, giver, awardee, value, message });
+      STATE.submissions.push({ id: Date.now() + i, timestamp: ts, giver, awardee, value, message, status: 'pending', imported: true });
       count++;
     });
 
@@ -458,12 +561,12 @@ async function sendToZapier(submission) {
 }
 
 function buildZapierPayload(submission) {
-  const config  = getTeamConfig();
-  const find    = name => config.members.find(m => m.name === name) || {};
-  const awardee = find(submission.awardee);
-  const giver   = find(submission.giver);
-  const manager = find(awardee.manager);
-  const talent  = find(config.talentHead);
+  const config      = getTeamConfig();
+  const find        = name => config.members.find(m => m.name === name) || {};
+  const awardee     = find(submission.awardee);
+  const giver       = find(submission.giver);
+  const manager     = find(awardee.manager);
+  const adminPeople = getAdminsByRole('admin');
   return {
     date:               new Date(submission.timestamp).toLocaleDateString(),
     time:               new Date(submission.timestamp).toLocaleTimeString(),
@@ -473,8 +576,8 @@ function buildZapierPayload(submission) {
     awardee_email:      awardee.email      || '',
     manager_name:       awardee.manager    || '',
     manager_email:      manager.email      || '',
-    talent_head_name:   config.talentHead  || '',
-    talent_head_email:  talent.email       || '',
+    talent_head_name:   adminPeople.map(a => a.name).join(','),
+    talent_head_email:  adminPeople.map(a => a.email).filter(Boolean).join(','),
     company_value:      submission.value,
     message:            submission.message,
   };
@@ -482,19 +585,19 @@ function buildZapierPayload(submission) {
 
 async function sendMilestoneToZapier(awardeeName, totalAwards) {
   if (!CONFIG.GOOGLE_SCRIPT_URL || CONFIG.GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) return;
-  const config   = getTeamConfig();
-  const find     = name => config.members.find(m => m.name === name) || {};
-  const awardee  = find(awardeeName);
-  const manager  = find(awardee.manager);
-  const admin    = find(config.talentHead);
-  const payload  = {
+  const config     = getTeamConfig();
+  const find       = name => config.members.find(m => m.name === name) || {};
+  const awardee    = find(awardeeName);
+  const manager    = find(awardee.manager);
+  const allAdmins  = getAdminsByRole(); // both Admin and Finance roles
+  const payload    = {
     type:           'milestone',
     awardee_name:   awardeeName,
-    awardee_email:  awardee.email      || '',
-    manager_name:   awardee.manager    || '',
-    manager_email:  manager.email      || '',
-    admin_name:     config.talentHead  || '',
-    admin_email:    admin.email        || '',
+    awardee_email:  awardee.email  || '',
+    manager_name:   awardee.manager || '',
+    manager_email:  manager.email  || '',
+    admin_names:    allAdmins.map(a => a.name).join(','),
+    admin_emails:   allAdmins.map(a => a.email).filter(Boolean).join(','),
     total_awards:   totalAwards,
   };
   try {
@@ -509,15 +612,49 @@ async function sendMilestoneToZapier(awardeeName, totalAwards) {
   }
 }
 
+async function sendCashBonusMilestone(awardeeName, thresholdPts, dollarAmount) {
+  if (!CONFIG.GOOGLE_SCRIPT_URL || CONFIG.GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) return;
+  const config        = getTeamConfig();
+  const find          = name => config.members.find(m => m.name === name) || {};
+  const awardee       = find(awardeeName);
+  const manager       = find(awardee.manager);
+  const financeAdmins = getAdminsByRole('finance');
+  const adminAdmins   = getAdminsByRole('admin');
+  const allRecipients = [...new Map(
+    [...financeAdmins, ...adminAdmins, ...(manager.email ? [manager] : [])]
+      .map(p => [p.email, p])
+  ).values()].filter(p => p.email);
+  if (!allRecipients.length) return;
+  const payload = {
+    type:             'cash_bonus_milestone',
+    awardee_name:     awardeeName,
+    awardee_email:    awardee.email   || '',
+    manager_name:     awardee.manager || '',
+    manager_email:    manager.email   || '',
+    finance_emails:   allRecipients.map(p => p.email).join(','),
+    threshold_points: thresholdPts,
+    bonus_amount:     dollarAmount,
+  };
+  try {
+    await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('Cash bonus milestone send failed:', err);
+  }
+}
+
 async function sendPendingNotification(submission) {
   if (!CONFIG.GOOGLE_SCRIPT_URL || CONFIG.GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) return;
-  const config  = getTeamConfig();
-  const admin   = config.members.find(m => m.name === config.talentHead) || {};
-  if (!admin.email) return;
+  const adminPeople = getAdminsByRole('admin').filter(a => a.email);
+  if (!adminPeople.length) return;
   const payload = {
     type:          'pending_notification',
-    admin_email:   admin.email,
-    admin_name:    config.talentHead || 'Admin',
+    admin_emails:  adminPeople.map(a => a.email).join(','),
+    admin_names:   adminPeople.map(a => a.name).join(','),
     giver:         submission.giver,
     awardee:       submission.awardee,
     company_value: submission.value,
@@ -564,15 +701,27 @@ function renderAdminPage() {
   const members = config.members;
   const names   = members.map(m => m.name).filter(Boolean);
 
-  // Talent head select
-  const talentSel = document.getElementById('admin-talent-head');
-  talentSel.innerHTML = '<option value="">Select person…</option>';
-  names.forEach(n => {
-    const opt = document.createElement('option');
-    opt.value = n; opt.textContent = n;
-    if (n === config.talentHead) opt.selected = true;
-    talentSel.appendChild(opt);
-  });
+  // Admin roles table
+  const rolesTbody = document.getElementById('admin-roles-tbody');
+  const adminRoles = config.adminRoles || [];
+  if (adminRoles.length) {
+    rolesTbody.innerHTML = adminRoles.map(a => {
+      const nameOpts = names
+        .map(n => `<option value="${escHtml(n)}" ${n === a.name ? 'selected' : ''}>${escHtml(n)}</option>`)
+        .join('');
+      return `
+        <tr>
+          <td><select class="admin-input admin-role-name"><option value="">Select person…</option>${nameOpts}</select></td>
+          <td><select class="admin-input admin-role-type">
+            <option value="admin"   ${a.role === 'admin'   ? 'selected' : ''}>Admin</option>
+            <option value="finance" ${a.role === 'finance' ? 'selected' : ''}>Finance</option>
+          </select></td>
+          <td><button class="admin-remove-btn admin-role-remove-btn" type="button" title="Remove">✕</button></td>
+        </tr>`;
+    }).join('');
+  } else {
+    rolesTbody.innerHTML = '<tr><td colspan="3" class="admin-note" style="padding:12px 0">No admins configured yet. Click "+ Add Admin" to add one.</td></tr>';
+  }
 
   // Members table
   const tbody = document.getElementById('admin-tbody');
@@ -581,26 +730,39 @@ function renderAdminPage() {
       .filter((_, j) => j !== i)
       .map(n => `<option value="${escHtml(n)}" ${n === m.manager ? 'selected' : ''}>${escHtml(n)}</option>`)
       .join('');
+    const memberStatus = m.status || 'current';
     return `
       <tr>
         <td><input type="text"  class="admin-input admin-name"    value="${escHtml(m.name)}"        placeholder="Full Name" /></td>
         <td><input type="email" class="admin-input admin-email"   value="${escHtml(m.email || '')}" placeholder="name@elementthree.com" /></td>
-        <td><select class="admin-input admin-manager"><option value="">No manager</option>${managerOpts}</select></td>
+        <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
+        <td><select class="admin-input admin-status">
+          <option value="current"  ${memberStatus === 'current'  ? 'selected' : ''}>Current</option>
+          <option value="former"   ${memberStatus === 'former'   ? 'selected' : ''}>Former</option>
+        </select></td>
         <td><button class="admin-remove-btn" type="button" title="Remove">✕</button></td>
       </tr>`;
   }).join('');
 }
 
 function saveAdminChanges() {
-  const talentHead = document.getElementById('admin-talent-head').value;
+  const adminRoles = [];
+  document.querySelectorAll('#admin-roles-tbody tr').forEach(row => {
+    const nameEl = row.querySelector('.admin-role-name');
+    const roleEl = row.querySelector('.admin-role-type');
+    if (nameEl && roleEl && nameEl.value) {
+      adminRoles.push({ name: nameEl.value, role: roleEl.value });
+    }
+  });
   const members = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
     const name    = row.querySelector('.admin-name').value.trim();
     const email   = row.querySelector('.admin-email').value.trim();
     const manager = row.querySelector('.admin-manager').value;
-    if (name) members.push({ name, email, manager });
+    const status  = row.querySelector('.admin-status').value || 'current';
+    if (name) members.push({ name, email, manager, status });
   });
-  saveTeamConfig({ members, talentHead });
+  saveTeamConfig({ members, adminRoles });
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
@@ -639,6 +801,7 @@ function renderPendingQueue() {
         <p class="pending-message">"${escHtml(s.message)}"</p>
         <div class="pending-actions">
           <button class="btn btn-primary pending-approve-btn" data-id="${s.id}">Approve</button>
+          ${s.imported ? `<button class="btn btn-secondary pending-approve-silent-btn" data-id="${s.id}">Approve (no email)</button>` : ''}
           <button class="btn btn-secondary pending-reject-btn" data-id="${s.id}">Reject</button>
           <button class="btn btn-secondary pending-edit-btn" data-id="${s.id}">Edit</button>
         </div>
@@ -655,10 +818,60 @@ async function approveSubmission(id) {
   // Now send to Google Script (logs to sheet + sends email)
   sendToZapier(sub);
 
-  // Check milestone
+  // Check 50-award milestone
   const awardeeTotal = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
   if (awardeeTotal % 50 === 0) sendMilestoneToZapier(sub.awardee, awardeeTotal);
 
+  // Check cash bonus milestones (Finance role recipients)
+  const CASH_THRESHOLDS = [
+    { pts: 300, dollars: 100 },
+    { pts: 500, dollars: 150 },
+    { pts: 750, dollars: 200 },
+    { pts: 1000, dollars: 250 },
+  ];
+  const ledger          = loadPointsLedger();
+  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const newTotalPts     = (ledger[sub.awardee] || 0) + approvedCount * 5;
+  const prevTotalPts    = newTotalPts - 5;
+  const firedMilestones = loadCashMilestones();
+  const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
+  let newlyFired        = false;
+
+  CASH_THRESHOLDS.forEach(({ pts, dollars }) => {
+    if (prevTotalPts < pts && newTotalPts >= pts && !alreadyFired.has(pts)) {
+      alreadyFired.add(pts);
+      newlyFired = true;
+      sendCashBonusMilestone(sub.awardee, pts, dollars);
+    }
+  });
+
+  if (newlyFired) {
+    firedMilestones[sub.awardee] = [...alreadyFired];
+    saveCashMilestones(firedMilestones);
+  }
+
+  renderPendingQueue();
+  renderDashboard();
+  renderFeed();
+}
+
+function approveSubmissionSilent(id) {
+  const sub = STATE.submissions.find(s => s.id === id);
+  if (!sub) return;
+  sub.status = 'approved';
+  saveSubmissions();
+  // Update cash milestone tracking without sending any emails
+  const CASH_THRESHOLDS = [{ pts: 300 }, { pts: 500 }, { pts: 750 }, { pts: 1000 }];
+  const ledger        = loadPointsLedger();
+  const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const newTotalPts   = (ledger[sub.awardee] || 0) + approvedCount * 5;
+  const firedMilestones = loadCashMilestones();
+  const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
+  let changed = false;
+  CASH_THRESHOLDS.forEach(({ pts }) => {
+    if (newTotalPts >= pts && !alreadyFired.has(pts)) { alreadyFired.add(pts); changed = true; }
+  });
+  if (changed) { firedMilestones[sub.awardee] = [...alreadyFired]; saveCashMilestones(firedMilestones); }
   renderPendingQueue();
   renderDashboard();
   renderFeed();
@@ -680,9 +893,11 @@ function renderFeed() {
   const list        = document.getElementById('feed-list');
   const searchVal   = document.getElementById('feed-search').value.toLowerCase();
   const filterValue = document.getElementById('feed-filter-value').value;
+  const formerNames = getFormerMemberNames();
 
   let items = STATE.submissions.filter(s => {
     if (s.status === 'pending' || s.status === 'rejected') return false;
+    if (formerNames.has(s.awardee)) return false;
     const matchSearch = !searchVal ||
       s.giver.toLowerCase().includes(searchVal) ||
       s.awardee.toLowerCase().includes(searchVal) ||
@@ -756,6 +971,7 @@ function populateDashboardFilters() {
 }
 
 function renderDashboard() {
+  const formerNames = getFormerMemberNames();
   const subs       = STATE.submissions.filter(s => s.status !== 'pending' && s.status !== 'rejected');
   const filterTo   = document.getElementById('filter-received-by').value;
   const filterFrom = document.getElementById('filter-given-by').value;
@@ -773,14 +989,22 @@ function renderDashboard() {
   };
 
   // ── Received card stats (independent of filterFrom) ──
+  const rangeEnd = DATE_RANGE.end || DATE_RANGE.start;
+  const inDateRange = s => {
+    if (!DATE_RANGE.start) return true;
+    const ds = dateToStr(new Date(s.timestamp));
+    return ds >= DATE_RANGE.start && ds <= rangeEnd;
+  };
   const receivedSubs = subs.filter(s =>
     (!filterTo  || s.awardee === filterTo) &&
-    (!filterVal || s.value   === filterVal)
+    (!filterVal || s.value   === filterVal) &&
+    inDateRange(s) &&
+    !formerNames.has(s.awardee)
   );
   const ledger = loadPointsLedger();
   const historicalPts = filterTo
-    ? (ledger[filterTo] || 0)
-    : Object.values(ledger).reduce((a, b) => a + b, 0);
+    ? (formerNames.has(filterTo) ? 0 : (ledger[filterTo] || 0))
+    : Object.entries(ledger).filter(([name]) => !formerNames.has(name)).reduce((a, [, v]) => a + v, 0);
   document.getElementById('stat-received').textContent      = receivedSubs.length;
   document.getElementById('stat-points').textContent        = historicalPts + receivedSubs.length * 5;
   document.getElementById('stat-received-month').textContent = receivedSubs.filter(isThisMonth).length;
@@ -789,24 +1013,21 @@ function renderDashboard() {
   // ── Given card stats (independent of filterTo) ──
   const givenSubs = subs.filter(s =>
     (!filterFrom || s.giver  === filterFrom) &&
-    (!filterVal  || s.value  === filterVal)
+    (!filterVal  || s.value  === filterVal) &&
+    inDateRange(s)
   );
   document.getElementById('stat-given').textContent       = givenSubs.length;
   document.getElementById('stat-given-month').textContent = givenSubs.filter(isThisMonth).length;
   document.getElementById('stat-recognized').textContent  = new Set(givenSubs.map(s => s.awardee)).size;
 
   // ── Charts + table: apply all filters combined ──
-  const rangeEnd = DATE_RANGE.end || DATE_RANGE.start;
-  let filtered = subs.filter(s => {
-    if (filterTo   && s.awardee !== filterTo)   return false;
-    if (filterFrom && s.giver   !== filterFrom) return false;
-    if (filterVal  && s.value   !== filterVal)  return false;
-    if (DATE_RANGE.start) {
-      const ds = s.timestamp.slice(0, 10);
-      if (ds < DATE_RANGE.start || ds > rangeEnd) return false;
-    }
-    return true;
-  }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  let filtered = subs.filter(s =>
+    (!filterTo   || s.awardee === filterTo) &&
+    (!filterFrom || s.giver   === filterFrom) &&
+    (!filterVal  || s.value   === filterVal) &&
+    inDateRange(s) &&
+    !formerNames.has(s.awardee)
+  ).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   // Chart titles
   document.getElementById('chart-recipients-title').textContent =
@@ -998,8 +1219,20 @@ function saveEditSubmission() {
 
 function deleteSubmission(id) {
   if (!confirm('Delete this Awesome Block Submission? This cannot be undone.')) return;
+  const sub = STATE.submissions.find(s => s.id === id);
   STATE.submissions = STATE.submissions.filter(s => s.id !== id);
   saveSubmissions();
+  // Clear any cash milestones the person has now dropped below
+  if (sub) {
+    const ledger = loadPointsLedger();
+    const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+    const newTotalPts = (ledger[sub.awardee] || 0) + approvedCount * 5;
+    const firedMilestones = loadCashMilestones();
+    const fired = new Set(firedMilestones[sub.awardee] || []);
+    [300, 500, 750, 1000].forEach(pts => { if (newTotalPts < pts) fired.delete(pts); });
+    firedMilestones[sub.awardee] = [...fired];
+    saveCashMilestones(firedMilestones);
+  }
   renderDashboard();
   renderFeed();
 }
@@ -1008,188 +1241,193 @@ function deleteSubmission(id) {
    DATE RANGE PICKER
    ═══════════════════════════════════════════ */
 const DATE_RANGE = { start: null, end: null };
-let calPickingEnd = false;
-let calViewYear, calViewMonth;
 
 function dateToStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function strToDisplay(str) {
-  if (!str) return '';
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m-1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function updateDateRangeDisplay() {
-  const el = document.getElementById('date-range-display');
-  if (!DATE_RANGE.start) {
-    el.textContent = 'Date Range';
-    el.classList.remove('has-value');
-  } else {
-    const end = DATE_RANGE.end || DATE_RANGE.start;
-    el.textContent = DATE_RANGE.start === end
-      ? strToDisplay(DATE_RANGE.start)
-      : `${strToDisplay(DATE_RANGE.start)} – ${strToDisplay(end)}`;
-    el.classList.add('has-value');
-  }
-}
-
-function renderCalendar(hoverDate) {
-  const label = document.getElementById('cal-month-label');
-  const grid  = document.getElementById('cal-days');
-  if (!label || !grid) return;
-
-  const d = new Date(calViewYear, calViewMonth, 1);
-  label.textContent = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
-  const startDow    = d.getDay();
-  let html = '';
-
-  for (let i = 0; i < startDow; i++) html += '<span></span>';
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const ds = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-
-    const rangeStart = DATE_RANGE.start;
-    const rangeEnd   = DATE_RANGE.end || DATE_RANGE.start;
-
-    // When user is mid-selection, compute dynamic range with hover
-    let lo = rangeStart, hi = rangeEnd;
-    if (calPickingEnd && rangeStart && hoverDate) {
-      lo = hoverDate < rangeStart ? hoverDate : rangeStart;
-      hi = hoverDate > rangeStart ? hoverDate : rangeStart;
-    }
-
-    const isStart    = ds === lo && lo;
-    const isEnd      = ds === hi && hi && hi !== lo;
-    const inRange    = lo && hi && ds > lo && ds < hi;
-    const isHover    = calPickingEnd && hoverDate && ds === hoverDate && !DATE_RANGE.end;
-
-    const cls = ['cal-day',
-      isStart ? 'cal-day-start' : '',
-      isEnd   ? 'cal-day-end'   : '',
-      inRange ? 'cal-day-in-range' : '',
-      isHover ? 'cal-day-hover' : '',
-    ].filter(Boolean).join(' ');
-
-    html += `<button class="${cls}" data-date="${ds}">${day}</button>`;
-  }
-  grid.innerHTML = html;
+function strToDisplay(s) {
+  // 'YYYY-MM-DD' → 'Mon D, YYYY'  (e.g. 'Mar 1, 2025')
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function initDatePicker() {
-  const now    = new Date();
-  calViewYear  = now.getFullYear();
-  calViewMonth = now.getMonth();
+  let activePreset = null;
+  let calOpen      = false;
+  let calViewYear  = new Date().getFullYear();
+  let calViewMonth = new Date().getMonth();
+  let calSelStart  = null; // 'YYYY-MM-DD'
+  let calSelEnd    = null;
+  let calHover     = null;
 
-  const wrapper = document.getElementById('date-range-wrapper');
-  const input   = document.getElementById('date-range-input');
+  const presetsEl  = document.getElementById('date-presets');
+  const popover    = document.getElementById('cal-popover');
+  const customBtn  = document.getElementById('custom-range-btn');
+  const hintEl     = document.getElementById('cal-range-hint');
+  const MONTHS     = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
 
-  // Build popover
-  const popover = document.createElement('div');
-  popover.id        = 'date-range-popover';
-  popover.className = 'cal-popover hidden';
-  popover.innerHTML = `
-    <div class="cal-presets">
-      <div class="cal-preset-label">Quick Select</div>
-      <button class="cal-preset" data-preset="today">Today</button>
-      <button class="cal-preset" data-preset="7">Last 7 days</button>
-      <button class="cal-preset" data-preset="30">Last 30 days</button>
-      <button class="cal-preset" data-preset="this-month">This month</button>
-      <button class="cal-preset" data-preset="last-month">Last month</button>
-    </div>
-    <div class="cal-main">
-      <div class="cal-header">
-        <button class="cal-nav" id="cal-prev">&#8249;</button>
-        <span class="cal-month-label" id="cal-month-label"></span>
-        <button class="cal-nav" id="cal-next">&#8250;</button>
-      </div>
-      <div class="cal-weekdays">
-        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-      </div>
-      <div class="cal-days" id="cal-days"></div>
-    </div>`;
-  wrapper.appendChild(popover);
+  // ── Open / close ──────────────────────────────────────────────
+  function openCal() {
+    calOpen = true;
+    customBtn.classList.add('active');
+    popover.classList.remove('hidden');
+    renderCal();
+  }
 
-  // Prevent any click inside the popover from bubbling to the document close handler
-  popover.addEventListener('click', e => e.stopPropagation());
+  function closeCal() {
+    calOpen = false;
+    popover.classList.add('hidden');
+    if (!DATE_RANGE.start) customBtn.classList.remove('active');
+  }
 
-  // Open / close
-  input.addEventListener('click', e => {
-    e.stopPropagation();
-    const isOpen = !popover.classList.contains('hidden');
-    popover.classList.toggle('hidden', isOpen);
-    input.classList.toggle('open', !isOpen);
-    if (!isOpen) {
-      calViewYear  = now.getFullYear();
-      calViewMonth = now.getMonth();
-      calPickingEnd = !!DATE_RANGE.start && !DATE_RANGE.end;
-      renderCalendar();
+  // ── Apply selection classes to a single day button ────────────
+  function applyDayClasses(btn, ds, hoverDs) {
+    btn.classList.remove('cal-day-start', 'cal-day-end', 'cal-day-in-range', 'cal-day-hover');
+    let rStart = calSelStart;
+    let rEnd   = calSelEnd !== null ? calSelEnd : hoverDs;
+    if (rStart && rEnd && rEnd < rStart) { [rStart, rEnd] = [rEnd, rStart]; }
+    if      (rStart && ds === rStart && rEnd && ds !== rEnd) btn.classList.add('cal-day-start');
+    else if (rStart && ds === rStart)                        btn.classList.add('cal-day-start');
+    else if (rStart && rEnd && ds === rEnd)                  btn.classList.add('cal-day-end');
+    else if (rStart && rEnd && ds > rStart && ds < rEnd)     btn.classList.add('cal-day-in-range');
+  }
+
+  function updateHint() {
+    if (!calSelStart)      hintEl.textContent = 'Click a start date';
+    else if (!calSelEnd)   hintEl.textContent = 'Click an end date';
+    else hintEl.textContent = `${strToDisplay(calSelStart)} – ${strToDisplay(calSelEnd)}`;
+  }
+
+  // ── Render calendar grid (only called on open / month nav / day click) ──
+  function renderCal() {
+    document.getElementById('cal-month-label').textContent =
+      `${MONTHS[calViewMonth]} ${calViewYear}`;
+
+    const grid = document.getElementById('cal-days-grid');
+    grid.innerHTML = '';
+
+    const firstDay    = new Date(calViewYear, calViewMonth, 1).getDay();
+    const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      grid.appendChild(document.createElement('div'));
     }
-  });
 
-  // Month navigation
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds  = `${calViewYear}-${String(calViewMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const btn = document.createElement('button');
+      btn.type         = 'button';
+      btn.className    = 'cal-day';
+      btn.textContent  = d;
+      btn.dataset.date = ds;
+      applyDayClasses(btn, ds, null);
+      grid.appendChild(btn);
+    }
+
+    updateHint();
+  }
+
+  // ── Month navigation ───────────────────────────────────────────
   document.getElementById('cal-prev').addEventListener('click', e => {
     e.stopPropagation();
-    if (--calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
-    renderCalendar();
+    calViewMonth--;
+    if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+    renderCal();
   });
+
   document.getElementById('cal-next').addEventListener('click', e => {
     e.stopPropagation();
-    if (++calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
-    renderCalendar();
+    calViewMonth++;
+    if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+    renderCal();
   });
 
-  // Day clicks
-  document.getElementById('cal-days').addEventListener('click', e => {
+  // ── Day click ──────────────────────────────────────────────────
+  document.getElementById('cal-days-grid').addEventListener('click', e => {
+    e.stopPropagation(); // prevent document outside-click handler from closing calendar
     const btn = e.target.closest('.cal-day');
-    if (!btn) return;
-    e.stopPropagation();
+    if (!btn || !btn.dataset.date) return;
     const ds = btn.dataset.date;
-    if (!DATE_RANGE.start || (DATE_RANGE.start && DATE_RANGE.end)) {
-      // First click — pick start, keep calendar open
-      DATE_RANGE.start = ds;
-      DATE_RANGE.end   = null;
-      calPickingEnd    = true;
-      renderCalendar();
-      updateDateRangeDisplay();
+
+    if (!calSelStart || calSelEnd) {
+      // Start a fresh selection
+      calSelStart = ds;
+      calSelEnd   = null;
+      calHover    = null;
     } else {
-      // Second click — pick end, close calendar, refresh dashboard
-      if (ds < DATE_RANGE.start) {
-        DATE_RANGE.end   = DATE_RANGE.start;
-        DATE_RANGE.start = ds;
+      // Second click = end date
+      if (ds === calSelStart) {
+        calSelStart = null;
+      } else if (ds < calSelStart) {
+        calSelEnd   = calSelStart;
+        calSelStart = ds;
       } else {
-        DATE_RANGE.end = ds;
+        calSelEnd = ds;
       }
-      calPickingEnd = false;
-      popover.classList.add('hidden');
-      input.classList.remove('open');
-      renderCalendar();
-      updateDateRangeDisplay();
-      renderDashboard();
+
+      if (calSelStart && calSelEnd) {
+        DATE_RANGE.start = calSelStart;
+        DATE_RANGE.end   = calSelEnd;
+        activePreset     = null;
+        document.querySelectorAll('.date-preset-btn:not(#custom-range-btn)')
+          .forEach(b => b.classList.remove('active'));
+        customBtn.classList.add('active');
+        closeCal();
+        renderDashboard();
+        return;
+      }
     }
+    // Re-render to update selection styles (no hover active during click)
+    calHover = null;
+    renderCal();
   });
 
-  // Hover preview
-  document.getElementById('cal-days').addEventListener('mouseover', e => {
+  // ── Hover preview: update classes only — never replace DOM ────
+  const grid = document.getElementById('cal-days-grid');
+
+  grid.addEventListener('mouseover', e => {
+    if (!calSelStart || calSelEnd) return;
     const btn = e.target.closest('.cal-day');
-    if (btn && calPickingEnd) renderCalendar(btn.dataset.date);
-  });
-  document.getElementById('cal-days').addEventListener('mouseleave', () => {
-    if (calPickingEnd) renderCalendar();
+    if (!btn || !btn.dataset.date) return;
+    const hoverDs = btn.dataset.date;
+    if (hoverDs === calHover) return; // no change
+    calHover = hoverDs;
+    grid.querySelectorAll('.cal-day').forEach(b => applyDayClasses(b, b.dataset.date, calHover));
   });
 
-  // Preset buttons
-  popover.querySelectorAll('.cal-preset').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
+  grid.addEventListener('mouseleave', () => {
+    if (!calSelStart || calSelEnd || !calHover) return;
+    calHover = null;
+    grid.querySelectorAll('.cal-day').forEach(b => applyDayClasses(b, b.dataset.date, null));
+  });
+
+  // ── Preset buttons ─────────────────────────────────────────────
+  presetsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.date-preset-btn');
+    if (!btn) return;
+    const preset = btn.dataset.preset;
+
+    if (preset === 'custom-range') {
+      calOpen ? closeCal() : openCal();
+      return;
+    }
+
+    // Any preset closes the calendar and clears custom selection
+    calSelStart = calSelEnd = calHover = null;
+    closeCal();
+
+    if (activePreset === preset) {
+      activePreset = null;
+      DATE_RANGE.start = DATE_RANGE.end = null;
+      document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+    } else {
+      activePreset = preset;
+      document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
       const today = new Date();
-      const preset = btn.dataset.preset;
-      if (preset === 'today') {
-        DATE_RANGE.start = DATE_RANGE.end = dateToStr(today);
-      } else if (preset === '7') {
+      if (preset === '7') {
         const s = new Date(today); s.setDate(s.getDate() - 6);
         DATE_RANGE.start = dateToStr(s); DATE_RANGE.end = dateToStr(today);
       } else if (preset === '30') {
@@ -1202,24 +1440,23 @@ function initDatePicker() {
         DATE_RANGE.start = dateToStr(new Date(today.getFullYear(), today.getMonth()-1, 1));
         DATE_RANGE.end   = dateToStr(new Date(today.getFullYear(), today.getMonth(), 0));
       }
-      calPickingEnd = false;
-      popover.classList.add('hidden');
-      input.classList.remove('open');
-      updateDateRangeDisplay();
-      renderDashboard();
-    });
+    }
+    renderDashboard();
   });
 
-  // Close on outside click — treat single-date click as single-day range
+  // ── Outside click closes ───────────────────────────────────────
   document.addEventListener('click', e => {
-    if (popover.contains(e.target) || input.contains(e.target)) return;
-    if (!popover.classList.contains('hidden')) {
-      if (DATE_RANGE.start && !DATE_RANGE.end) DATE_RANGE.end = DATE_RANGE.start;
-      popover.classList.add('hidden');
-      input.classList.remove('open');
-      updateDateRangeDisplay();
-      renderDashboard();
+    if (!calOpen) return;
+    if (!popover.contains(e.target) && !customBtn.contains(e.target)) {
+      closeCal();
     }
+  });
+
+  // ── Reset button also clears calendar state ────────────────────
+  document.getElementById('dashboard-reset-btn').addEventListener('click', () => {
+    calSelStart = calSelEnd = calHover = null;
+    activePreset = null;
+    closeCal();
   });
 }
 
@@ -1250,15 +1487,26 @@ function init() {
     showLogin();
   }
 
+  // Initialize Google Sign-In (shows Google button and hides name picker if CLIENT_ID is set)
+  initGoogleSignIn();
+
+  // Populate login name dropdown (fallback / local dev)
+  const loginNameSel = document.getElementById('login-name');
+  getTeamMemberNames().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    loginNameSel.appendChild(opt);
+  });
+
   // Login form
   document.getElementById('login-form').addEventListener('submit', e => {
     e.preventDefault();
-    const pw = document.getElementById('login-password').value;
-    if (pw === CONFIG.PASSWORD) {
-      login();
+    const name = document.getElementById('login-name').value;
+    if (name) {
+      login(name);
     } else {
       document.getElementById('login-error').classList.remove('hidden');
-      document.getElementById('login-password').value = '';
     }
   });
 
@@ -1293,7 +1541,7 @@ function init() {
     document.getElementById('filter-value').value = '';
     DATE_RANGE.start = null;
     DATE_RANGE.end   = null;
-    updateDateRangeDisplay();
+    document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
     renderDashboard();
   });
 
@@ -1313,12 +1561,14 @@ function init() {
   // Admin page
   document.getElementById('admin-save-btn').addEventListener('click', saveAdminChanges);
   document.getElementById('pending-list').addEventListener('click', e => {
-    const approveBtn = e.target.closest('.pending-approve-btn');
-    const rejectBtn  = e.target.closest('.pending-reject-btn');
-    const editBtn    = e.target.closest('.pending-edit-btn');
-    if (approveBtn) approveSubmission(Number(approveBtn.dataset.id));
-    if (rejectBtn)  rejectSubmission(Number(rejectBtn.dataset.id));
-    if (editBtn)    openEditSubmission(Number(editBtn.dataset.id));
+    const approveBtn       = e.target.closest('.pending-approve-btn');
+    const approveSilentBtn = e.target.closest('.pending-approve-silent-btn');
+    const rejectBtn        = e.target.closest('.pending-reject-btn');
+    const editBtn          = e.target.closest('.pending-edit-btn');
+    if (approveBtn)       approveSubmission(Number(approveBtn.dataset.id));
+    if (approveSilentBtn) approveSubmissionSilent(Number(approveSilentBtn.dataset.id));
+    if (rejectBtn)        rejectSubmission(Number(rejectBtn.dataset.id));
+    if (editBtn)          openEditSubmission(Number(editBtn.dataset.id));
   });
   document.getElementById('admin-add-btn').addEventListener('click', () => {
     const names = getTeamMemberNames();
@@ -1327,13 +1577,56 @@ function init() {
     tr.innerHTML = `
       <td><input type="text"  class="admin-input admin-name"    value="" placeholder="Full Name" /></td>
       <td><input type="email" class="admin-input admin-email"   value="" placeholder="name@elementthree.com" /></td>
-      <td><select class="admin-input admin-manager"><option value="">No manager</option>${managerOpts}</select></td>
+      <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
+      <td><select class="admin-input admin-status">
+        <option value="current" selected>Current</option>
+        <option value="former">Former</option>
+      </select></td>
       <td><button class="admin-remove-btn" type="button" title="Remove">✕</button></td>`;
     document.getElementById('admin-tbody').appendChild(tr);
     tr.querySelector('.admin-name').focus();
   });
   document.getElementById('admin-tbody').addEventListener('click', e => {
-    if (e.target.classList.contains('admin-remove-btn')) e.target.closest('tr').remove();
+    if (e.target.classList.contains('admin-remove-btn') && !e.target.classList.contains('admin-role-remove-btn')) {
+      e.target.closest('tr').remove();
+    }
+  });
+
+  document.getElementById('admin-add-role-btn').addEventListener('click', () => {
+    const names    = getTeamMemberNames();
+    const nameOpts = names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+    const tr       = document.createElement('tr');
+    tr.innerHTML = `
+      <td><select class="admin-input admin-role-name"><option value="">Select person…</option>${nameOpts}</select></td>
+      <td><select class="admin-input admin-role-type">
+        <option value="admin" selected>Admin</option>
+        <option value="finance">Finance</option>
+      </select></td>
+      <td><button class="admin-remove-btn admin-role-remove-btn" type="button" title="Remove">✕</button></td>`;
+    document.getElementById('admin-roles-tbody').appendChild(tr);
+    tr.querySelector('.admin-role-name').focus();
+  });
+
+  document.getElementById('admin-roles-tbody').addEventListener('click', e => {
+    if (e.target.classList.contains('admin-role-remove-btn')) e.target.closest('tr').remove();
+  });
+
+  document.getElementById('admin-roles-save-btn').addEventListener('click', () => {
+    const adminRoles = [];
+    document.querySelectorAll('#admin-roles-tbody tr').forEach(row => {
+      const nameEl = row.querySelector('.admin-role-name');
+      const roleEl = row.querySelector('.admin-role-type');
+      if (nameEl && roleEl && nameEl.value) {
+        adminRoles.push({ name: nameEl.value, role: roleEl.value });
+      }
+    });
+    const config = getTeamConfig();
+    saveTeamConfig({ ...config, adminRoles });
+    const status = document.getElementById('admin-roles-save-status');
+    status.textContent = `✓ Saved — ${adminRoles.length} ${adminRoles.length === 1 ? 'admin' : 'admins'}`;
+    status.className = 'import-status import-ok';
+    status.classList.remove('hidden');
+    setTimeout(() => status.classList.add('hidden'), 4000);
   });
 
   // Edit submission buttons (admin only)
