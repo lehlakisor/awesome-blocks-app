@@ -61,83 +61,44 @@ const CONFIG = {
    STATE
    ═══════════════════════════════════════════ */
 const STATE = {
-  submissions: [],  // loaded from localStorage
+  submissions: [],
+  teamConfig: null,
+  pointsLedger: {},
+  cashMilestones: {},
 };
 
 /* ═══════════════════════════════════════════
    STORAGE HELPERS
    ═══════════════════════════════════════════ */
 function loadSubmissions() {
-  try {
-    const raw = localStorage.getItem('ab_submissions');
-    STATE.submissions = raw ? JSON.parse(raw) : [];
-  } catch {
-    STATE.submissions = [];
-  }
+  // data loaded at init via API
 }
 
 function saveSubmissions() {
-  localStorage.setItem('ab_submissions', JSON.stringify(STATE.submissions));
+  // submissions persisted via individual API calls
 }
 
 /* ═══════════════════════════════════════════
-   SEED DATA  (historical points as of Jan 2026)
-   ═══════════════════════════════════════════ */
-const SEED_POINTS = {
-  'Colton Angel':           100,
-  'Ashley Booth':           570,
-  'Amy Burklow':            735,
-  'Bennett Clark':          475,
-  'Brian Cole':             810,
-  'Jess Ferguson':         1130,
-  'Theresa Behrens Goodall': 965,
-  'John Gough':             300,
-  'Noah Gregg':             595,
-  'Heather Hoerr':            5,
-  'Steven Hileman':          30,
-  'Abby Hines':             595,
-  'Allison Hunt':            75,
-  'Cade Jones':             610,
-  'JoAnna Keilman':          10,
-  'Madie Lutzke':           220,
-  'Carrie Marsteller':     1060,
-  'Kyler Mason':            290,
-  'Charlie May':              5,
-  'Reid Morris':            705,
-  'Sarah Riggio':           195,
-  'Kayla Searles':          585,
-  'Karen Seketa':           140,
-  'Victoria Shaw':          260,
-  'Roman Smith':             55,
-  'Rachel Young':           275,
-};
-
-/* ═══════════════════════════════════════════
-   POINTS LEDGER (historical balances)
+   POINTS LEDGER
    ═══════════════════════════════════════════ */
 function loadPointsLedger() {
-  try {
-    const raw = localStorage.getItem('ab_points_ledger');
-    if (raw) return JSON.parse(raw);
-    // First load — seed from historical data and persist it
-    savePointsLedger(SEED_POINTS);
-    return { ...SEED_POINTS };
-  } catch { return { ...SEED_POINTS }; }
+  return STATE.pointsLedger;
 }
 
 function savePointsLedger(ledger) {
-  localStorage.setItem('ab_points_ledger', JSON.stringify(ledger));
+  STATE.pointsLedger = ledger;
+  fetch('/api/points-ledger', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ledger) })
+    .catch(err => console.error('Failed to save points ledger:', err));
 }
 
 function loadCashMilestones() {
-  try {
-    const raw = localStorage.getItem('ab_cash_milestones');
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  return STATE.cashMilestones;
 }
 
 function saveCashMilestones(milestones) {
-  localStorage.setItem('ab_cash_milestones', JSON.stringify(milestones));
+  STATE.cashMilestones = milestones;
+  fetch('/api/cash-milestones', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(milestones) })
+    .catch(err => console.error('Failed to save cash milestones:', err));
 }
 
 /* ═══════════════════════════════════════════
@@ -188,34 +149,13 @@ function parseImportDate(str) {
    TEAM CONFIG (admin-managed roster)
    ═══════════════════════════════════════════ */
 function getTeamConfig() {
-  try {
-    const raw = localStorage.getItem('ab_team_config');
-    if (raw) {
-      const config = JSON.parse(raw);
-      // Migrate from old single talentHead string to adminRoles array
-      if (!config.adminRoles) {
-        config.adminRoles = config.talentHead
-          ? [{ name: config.talentHead, role: 'admin' }]
-          : [];
-        delete config.talentHead;
-        saveTeamConfig(config);
-      }
-      return config;
-    }
-    // Seed from hardcoded list on first load
-    const def = {
-      members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
-      adminRoles: [],
-    };
-    saveTeamConfig(def);
-    return def;
-  } catch {
-    return { members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })), adminRoles: [] };
-  }
+  return STATE.teamConfig || { members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })), adminRoles: [] };
 }
 
 function saveTeamConfig(config) {
-  localStorage.setItem('ab_team_config', JSON.stringify(config));
+  STATE.teamConfig = config;
+  fetch('/api/team-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) })
+    .catch(err => console.error('Failed to save team config:', err));
 }
 
 function getTeamMemberNames() {
@@ -426,6 +366,11 @@ async function handleAwardSubmit(e) {
   // Save locally — email + feed publish happen only after admin approves
   STATE.submissions.unshift(submission);
   saveSubmissions();
+  fetch('/api/submissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(submission),
+  }).catch(err => console.error('Failed to save submission:', err));
 
   // Notify admin that there's a pending submission to review
   sendPendingNotification(submission);
@@ -526,6 +471,9 @@ function handleSubmissionsImport(file) {
       const ts      = parseImportDate(dateStr) || new Date().toISOString();
 
       STATE.submissions.push({ id: Date.now() + i, timestamp: ts, giver, awardee, value, message, status: 'pending', imported: true });
+      const sub = STATE.submissions[STATE.submissions.length - 1];
+      fetch('/api/submissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) })
+        .catch(err => console.error('Failed to save imported submission:', err));
       count++;
     });
 
@@ -814,6 +762,11 @@ async function approveSubmission(id) {
   if (!sub) return;
   sub.status = 'approved';
   saveSubmissions();
+  fetch(`/api/submissions/${sub.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub),
+  }).catch(err => console.error('Failed to update submission:', err));
 
   // Now send to Google Script (logs to sheet + sends email)
   sendToZapier(sub);
@@ -860,6 +813,11 @@ function approveSubmissionSilent(id) {
   if (!sub) return;
   sub.status = 'approved';
   saveSubmissions();
+  fetch(`/api/submissions/${sub.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub),
+  }).catch(err => console.error('Failed to update submission:', err));
   // Update cash milestone tracking without sending any emails
   const CASH_THRESHOLDS = [{ pts: 300 }, { pts: 500 }, { pts: 750 }, { pts: 1000 }];
   const ledger        = loadPointsLedger();
@@ -883,6 +841,11 @@ function rejectSubmission(id) {
   if (!sub) return;
   sub.status = 'rejected';
   saveSubmissions();
+  fetch(`/api/submissions/${sub.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub),
+  }).catch(err => console.error('Failed to update submission:', err));
   renderPendingQueue();
 }
 
@@ -1211,6 +1174,11 @@ function saveEditSubmission() {
   sub.message = document.getElementById('edit-message').value.trim();
 
   saveSubmissions();
+  fetch(`/api/submissions/${sub.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub),
+  }).catch(err => console.error('Failed to update submission:', err));
   closeEditModal();
   renderPendingQueue();
   renderDashboard();
@@ -1222,6 +1190,8 @@ function deleteSubmission(id) {
   const sub = STATE.submissions.find(s => s.id === id);
   STATE.submissions = STATE.submissions.filter(s => s.id !== id);
   saveSubmissions();
+  fetch(`/api/submissions/${id}`, { method: 'DELETE' })
+    .catch(err => console.error('Failed to delete submission:', err));
   // Clear any cash milestones the person has now dropped below
   if (sub) {
     const ledger = loadPointsLedger();
@@ -1475,8 +1445,32 @@ function escHtml(str) {
 /* ═══════════════════════════════════════════
    INIT
    ═══════════════════════════════════════════ */
-function init() {
-  loadSubmissions();
+async function init() {
+  // Load all data from API
+  try {
+    const [teamConfig, submissions, pointsLedger, cashMilestones] = await Promise.all([
+      fetch('/api/team-config').then(r => r.json()),
+      fetch('/api/submissions').then(r => r.json()),
+      fetch('/api/points-ledger').then(r => r.json()),
+      fetch('/api/cash-milestones').then(r => r.json()),
+    ]);
+    STATE.teamConfig = Object.keys(teamConfig).length ? teamConfig : null;
+    STATE.submissions = Array.isArray(submissions) ? submissions : [];
+    STATE.pointsLedger = pointsLedger || {};
+    STATE.cashMilestones = cashMilestones || {};
+  } catch (err) {
+    console.error('Failed to load data from API:', err);
+  }
+
+  // If no team config yet, seed from hardcoded list
+  if (!STATE.teamConfig) {
+    const def = {
+      members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
+      adminRoles: [],
+    };
+    saveTeamConfig(def);
+  }
+
   populateTeamDropdowns();
   initCharCounter();
 
