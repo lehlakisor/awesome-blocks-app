@@ -673,7 +673,8 @@ function renderAdminPage() {
 
   // Members table
   const tbody = document.getElementById('admin-tbody');
-  tbody.innerHTML = members.map((m, i) => {
+
+  function memberRow(m, i) {
     const managerOpts = names
       .filter((_, j) => j !== i)
       .map(n => `<option value="${escHtml(n)}" ${n === m.manager ? 'selected' : ''}>${escHtml(n)}</option>`)
@@ -690,7 +691,33 @@ function renderAdminPage() {
         </select></td>
         <td><button class="admin-remove-btn" type="button" title="Remove">✕</button></td>
       </tr>`;
-  }).join('');
+  }
+
+  const currentRows = members
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => (m.status || 'current') === 'current')
+    .map(({ m, i }) => memberRow(m, i))
+    .join('');
+
+  const formerMembers = members
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => m.status === 'former');
+
+  const formerRows = formerMembers.map(({ m, i }) => memberRow(m, i)).join('');
+
+  tbody.innerHTML = currentRows + (formerMembers.length ? `
+    <tr id="former-toggle-row">
+      <td colspan="5">
+        <button type="button" id="former-toggle-btn" class="btn btn-secondary" style="width:100%;margin:4px 0" onclick="
+          const rows = document.querySelectorAll('.former-row');
+          const hidden = rows[0]?.classList.contains('hidden');
+          rows.forEach(r => r.classList.toggle('hidden', !hidden));
+          this.textContent = hidden ? '▲ Hide former employees (${formerMembers.length})' : '▼ Show former employees (${formerMembers.length})';
+        ">▼ Show former employees (${formerMembers.length})</button>
+      </td>
+    </tr>
+    ${formerRows.replace(/<tr>/g, '<tr class="former-row hidden">')}
+  ` : '');
 }
 
 function saveAdminChanges() {
