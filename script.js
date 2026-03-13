@@ -1662,6 +1662,38 @@ function init() {
       importSubsFile.value = '';
     }
   });
+
+  // Export team config
+  document.getElementById('export-team-config-btn').addEventListener('click', () => {
+    const config = getTeamConfig();
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'team-config.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // Import team config
+  const importTeamConfigFile = document.getElementById('import-team-config-file');
+  document.getElementById('import-team-config-btn').addEventListener('click', () => importTeamConfigFile.click());
+  importTeamConfigFile.addEventListener('change', () => {
+    const file = importTeamConfigFile.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const config = JSON.parse(e.target.result);
+        saveTeamConfig(config);
+        showImportStatus('✓ Team config imported.');
+        renderAdminPanel();
+      } catch {
+        showImportStatus('✗ Invalid JSON file.', true);
+      }
+    };
+    reader.readAsText(file);
+    importTeamConfigFile.value = '';
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
