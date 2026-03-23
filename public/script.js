@@ -946,7 +946,7 @@ function downloadCSV() {
   URL.revokeObjectURL(url);
 }
 function populateDashboardFilters() {
-  const names = getTeamMemberNames();
+  const names = getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort();
   ['filter-received-by', 'filter-given-by'].forEach(id => {
     const sel = document.getElementById(id);
     const cur = sel.value;
@@ -1026,9 +1026,11 @@ function renderDashboard() {
   document.getElementById('chart-givers-title').textContent =
     filterTo ? `Who recognized ${filterTo.split(' ')[0]}` : 'Top Givers';
 
-  renderBarChart('chart-top-recipients', countBy(filtered, 'awardee'), 5);
-  renderBarChart('chart-by-value',       countBy(filtered, 'value'),   6);
-  renderBarChart('chart-top-givers',     countBy(filtered, 'giver'),   5);
+  const currentNames = new Set(getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name));
+  const chartFiltered = filtered.filter(s => currentNames.has(s.awardee) && currentNames.has(s.giver));
+  renderBarChart('chart-top-recipients', countBy(chartFiltered, 'awardee'), 5);
+  renderBarChart('chart-by-value',       countBy(filtered,      'value'),   6);
+  renderBarChart('chart-top-givers',     countBy(chartFiltered, 'giver'),   5);
   renderMonthlyChart(filtered);
 
   // Table title
