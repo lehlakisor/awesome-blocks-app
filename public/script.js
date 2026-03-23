@@ -723,12 +723,16 @@ function renderAdminPage() {
 function saveAdminChanges() {
   const members = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
-    const name    = row.querySelector('.admin-name').value.trim();
+    const nameEl = row.querySelector('.admin-name');
+    if (!nameEl) return; // skip toggle row
+    const name    = nameEl.value.trim();
     const manager = row.querySelector('.admin-manager').value;
     const status  = row.querySelector('.admin-status').value || 'current';
     if (name) {
       const existing = getTeamConfig().members.find(m => m.name === name);
-      members.push({ name, email: existing?.email || '', manager, status });
+      const parts    = name.trim().split(/\s+/);
+      const autoEmail = parts.length >= 2 ? `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}@elementthree.com` : '';
+      members.push({ name, email: existing?.email || autoEmail, manager, status });
     }
   });
   const config = getTeamConfig();
