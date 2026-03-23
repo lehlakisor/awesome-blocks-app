@@ -690,7 +690,7 @@ function renderAdminPage() {
 
   const currentRows = members
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => (m.status || 'current') === 'current')
+    .filter(({ m }) => (m.status || 'current') === 'current' && m.name)
     .sort((a, b) => a.m.name.localeCompare(b.m.name))
     .map(({ m, i }) => memberRow(m, i))
     .join('');
@@ -737,7 +737,6 @@ function saveAdminChanges(silent = false) {
 
 function renderPendingQueue() {
   const pending = STATE.submissions.filter(s => s.status === 'pending');
-  const card    = document.getElementById('pending-queue-card');
   const badge   = document.getElementById('pending-badge');
   const list    = document.getElementById('pending-list');
 
