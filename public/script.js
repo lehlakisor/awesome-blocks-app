@@ -303,7 +303,7 @@ function navigateTo(targetId) {
 function populateTeamDropdowns() {
   const awardeeSel  = document.getElementById('awardee');
   const currentUser = getCurrentUser();
-  const names       = getTeamMemberNames().filter(n => n !== currentUser);
+  const names       = getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort().filter(n => n !== currentUser);
 
   awardeeSel.innerHTML = '<option value="">Select recipient…</option>';
   names.forEach(name => {
@@ -1708,7 +1708,7 @@ async function init() {
         const config = JSON.parse(e.target.result);
         saveTeamConfig(config);
         showImportStatus('✓ Team config imported.');
-        renderAdminPanel();
+        renderAdminPage();
       } catch {
         showImportStatus('✗ Invalid JSON file.', true);
       }
