@@ -1571,9 +1571,11 @@ async function init() {
     const member = config.members.find(m => m.name === name);
     if (member) {
       member.status = 'current';
-      STATE.teamConfig = config;
+      saveTeamConfig(config);
       sel.value = '';
-      saveAdminChanges(true);
+      populateTeamDropdowns();
+      populateDashboardFilters();
+      renderAdminPage();
     }
   });
   document.getElementById('pending-list').addEventListener('click', e => {
@@ -1601,15 +1603,15 @@ async function init() {
     if (e.target.classList.contains('admin-remove-btn') && !e.target.classList.contains('admin-role-remove-btn')) {
       const name = e.target.closest('tr').querySelector('.admin-name').value.trim();
       if (name) {
-        // Mark as former in STATE before saveAdminChanges reads the DOM
         const config = getTeamConfig();
         const member = config.members.find(m => m.name === name);
         if (member) member.status = 'former';
         else config.members.push({ name, email: '', manager: '', status: 'former' });
-        STATE.teamConfig = config;
-        // Remove the row from DOM, then save everything in one write
+        saveTeamConfig(config);
         e.target.closest('tr').remove();
-        saveAdminChanges(true);
+        populateTeamDropdowns();
+        populateDashboardFilters();
+        renderAdminPage();
       }
     }
   });
