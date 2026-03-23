@@ -508,7 +508,7 @@ textarea { resize: vertical; min-height: 100px; }
 
 .tag-value {
   background: var(--charcoal);
-  color: var(--chartreuse);
+  color: #f5f5f5;
 }
 
 .feed-date {
