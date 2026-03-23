@@ -799,9 +799,8 @@ async function approveSubmission(id) {
     { pts: 750, dollars: 200 },
     { pts: 1000, dollars: 250 },
   ];
-  const ledger          = loadPointsLedger();
   const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
-  const newTotalPts     = (ledger[sub.awardee] || 0) + approvedCount * 5;
+  const newTotalPts     = approvedCount * 5;
   const prevTotalPts    = newTotalPts - 5;
   const firedMilestones = loadCashMilestones();
   const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
@@ -837,9 +836,8 @@ function approveSubmissionSilent(id) {
   }).catch(err => console.error('Failed to update submission:', err));
   // Update cash milestone tracking without sending any emails
   const CASH_THRESHOLDS = [{ pts: 300 }, { pts: 500 }, { pts: 750 }, { pts: 1000 }];
-  const ledger        = loadPointsLedger();
   const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
-  const newTotalPts   = (ledger[sub.awardee] || 0) + approvedCount * 5;
+  const newTotalPts   = approvedCount * 5;
   const firedMilestones = loadCashMilestones();
   const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
   let changed = false;
@@ -985,12 +983,8 @@ function renderDashboard() {
     inDateRange(s) &&
     !formerNames.has(s.awardee)
   );
-  const ledger = loadPointsLedger();
-  const historicalPts = filterTo
-    ? (formerNames.has(filterTo) ? 0 : (ledger[filterTo] || 0))
-    : Object.entries(ledger).filter(([name]) => !formerNames.has(name)).reduce((a, [, v]) => a + v, 0);
   document.getElementById('stat-received').textContent      = receivedSubs.length;
-  document.getElementById('stat-points').textContent        = historicalPts + receivedSubs.length * 5;
+  document.getElementById('stat-points').textContent        = receivedSubs.length * 5;
   document.getElementById('stat-received-month').textContent = receivedSubs.filter(isThisMonth).length;
   document.getElementById('stat-recognized-by').textContent = new Set(receivedSubs.map(s => s.giver)).size;
 
@@ -1218,9 +1212,8 @@ function deleteSubmission(id) {
     .catch(err => console.error('Failed to delete submission:', err));
   // Clear any cash milestones the person has now dropped below
   if (sub) {
-    const ledger = loadPointsLedger();
     const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
-    const newTotalPts = (ledger[sub.awardee] || 0) + approvedCount * 5;
+    const newTotalPts = approvedCount * 5;
     const firedMilestones = loadCashMilestones();
     const fired = new Set(firedMilestones[sub.awardee] || []);
     [300, 500, 750, 1000].forEach(pts => { if (newTotalPts < pts) fired.delete(pts); });
