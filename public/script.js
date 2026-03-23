@@ -726,7 +726,8 @@ function saveAdminChanges() {
     }
   });
   const config = getTeamConfig();
-  saveTeamConfig({ ...config, members });
+  const formerMembers = config.members.filter(m => m.status === 'former');
+  saveTeamConfig({ ...config, members: [...members, ...formerMembers] });
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
