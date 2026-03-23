@@ -1029,7 +1029,7 @@ function renderDashboard() {
   const currentNames = new Set(getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name));
   const chartFiltered = filtered.filter(s => currentNames.has(s.awardee) && currentNames.has(s.giver));
   renderBarChart('chart-top-recipients', countBy(chartFiltered, 'awardee'), 5);
-  const jan2026 = new Date('2026-01-01').getTime();
+  const jan2026 = new Date('2026-01-29').getTime();
   renderBarChart('chart-by-value',       countBy(filtered.filter(s => new Date(s.timestamp).getTime() >= jan2026), 'value'), 6);
   renderBarChart('chart-top-givers',     countBy(chartFiltered, 'giver'),   5);
   renderMonthlyChart(filtered);
