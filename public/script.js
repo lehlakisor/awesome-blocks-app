@@ -700,6 +700,14 @@ function renderAdminPage() {
     .join('');
 
   tbody.innerHTML = currentRows;
+
+  // Populate restore dropdown with former employees
+  const restoreSel = document.getElementById('restore-former-select');
+  if (restoreSel) {
+    const formerNames = members.filter(m => m.status === 'former').map(m => m.name).sort();
+    restoreSel.innerHTML = '<option value="">Restore a former employee…</option>' +
+      formerNames.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  }
 }
 
 function saveAdminChanges() {
@@ -1569,6 +1577,22 @@ async function init() {
 
   // Admin page
   document.getElementById('admin-save-btn').addEventListener('click', saveAdminChanges);
+
+  document.getElementById('restore-former-btn').addEventListener('click', () => {
+    const sel  = document.getElementById('restore-former-select');
+    const name = sel.value;
+    if (!name) return;
+    const config = getTeamConfig();
+    const member = config.members.find(m => m.name === name);
+    if (member) {
+      member.status = 'current';
+      saveTeamConfig(config);
+      populateTeamDropdowns();
+      populateDashboardFilters();
+      renderAdminPage();
+      sel.value = '';
+    }
+  });
   document.getElementById('pending-list').addEventListener('click', e => {
     const approveBtn       = e.target.closest('.pending-approve-btn');
     const approveSilentBtn = e.target.closest('.pending-approve-silent-btn');
