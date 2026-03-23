@@ -699,25 +699,7 @@ function renderAdminPage() {
     .map(({ m, i }) => memberRow(m, i))
     .join('');
 
-  const formerMembers = members
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.status === 'former');
-
-  const formerRows = formerMembers.map(({ m, i }) => memberRow(m, i)).join('');
-
-  tbody.innerHTML = currentRows + (formerMembers.length ? `
-    <tr id="former-toggle-row">
-      <td colspan="5">
-        <button type="button" id="former-toggle-btn" class="btn btn-secondary" style="width:100%;margin:4px 0" onclick="
-          const rows = document.querySelectorAll('.former-row');
-          const hidden = rows[0]?.classList.contains('hidden');
-          rows.forEach(r => r.classList.toggle('hidden', !hidden));
-          this.textContent = hidden ? '▲ Hide former employees (${formerMembers.length})' : '▼ Show former employees (${formerMembers.length})';
-        ">▼ Show former employees (${formerMembers.length})</button>
-      </td>
-    </tr>
-    ${formerRows.replace(/<tr>/g, '<tr class="former-row hidden">')}
-  ` : '');
+  tbody.innerHTML = currentRows;
 }
 
 function saveAdminChanges() {
@@ -944,8 +926,12 @@ function downloadCSV() {
   URL.revokeObjectURL(url);
 }
 function populateDashboardFilters() {
-  const names = getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort();
-  ['filter-received-by', 'filter-given-by'].forEach(id => {
+  const allMembers    = getTeamConfig().members;
+  const currentNames  = allMembers.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort();
+  const allNames      = allMembers.map(m => m.name).filter(Boolean).sort();
+
+  const namesByFilter = { 'filter-received-by': currentNames, 'filter-given-by': allNames };
+  Object.entries(namesByFilter).forEach(([id, names]) => {
     const sel = document.getElementById(id);
     const cur = sel.value;
     sel.innerHTML = `<option value="">Everyone</option>`;
