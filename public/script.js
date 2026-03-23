@@ -691,6 +691,7 @@ function renderAdminPage() {
   const currentRows = members
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => (m.status || 'current') === 'current')
+    .sort((a, b) => a.m.name.localeCompare(b.m.name))
     .map(({ m, i }) => memberRow(m, i))
     .join('');
 
@@ -705,7 +706,7 @@ function renderAdminPage() {
   }
 }
 
-function saveAdminChanges() {
+function saveAdminChanges(silent = false) {
   const members = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
     const nameEl = row.querySelector('.admin-name');
@@ -725,11 +726,13 @@ function saveAdminChanges() {
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
-  const status = document.getElementById('admin-save-status');
-  status.textContent = `✓ Saved — ${members.length} team members`;
-  status.className = 'import-status import-ok';
-  status.classList.remove('hidden');
-  setTimeout(() => status.classList.add('hidden'), 4000);
+  if (!silent) {
+    const status = document.getElementById('admin-save-status');
+    status.textContent = `✓ Saved — ${members.length} team members`;
+    status.className = 'import-status import-ok';
+    status.classList.remove('hidden');
+    setTimeout(() => status.classList.add('hidden'), 4000);
+  }
 }
 
 function renderPendingQueue() {
@@ -1570,11 +1573,9 @@ async function init() {
     const member = config.members.find(m => m.name === name);
     if (member) {
       member.status = 'current';
-      saveTeamConfig(config);
-      populateTeamDropdowns();
-      populateDashboardFilters();
-      renderAdminPage();
+      STATE.teamConfig = config;
       sel.value = '';
+      saveAdminChanges(true);
     }
   });
   document.getElementById('pending-list').addEventListener('click', e => {
@@ -1602,14 +1603,15 @@ async function init() {
     if (e.target.classList.contains('admin-remove-btn') && !e.target.classList.contains('admin-role-remove-btn')) {
       const name = e.target.closest('tr').querySelector('.admin-name').value.trim();
       if (name) {
+        // Mark as former in STATE before saveAdminChanges reads the DOM
         const config = getTeamConfig();
         const member = config.members.find(m => m.name === name);
         if (member) member.status = 'former';
         else config.members.push({ name, email: '', manager: '', status: 'former' });
-        saveTeamConfig(config);
-        populateTeamDropdowns();
-        populateDashboardFilters();
-        renderAdminPage();
+        STATE.teamConfig = config;
+        // Remove the row from DOM, then save everything in one write
+        e.target.closest('tr').remove();
+        saveAdminChanges(true);
       }
     }
   });
