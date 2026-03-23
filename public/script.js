@@ -680,16 +680,11 @@ function renderAdminPage() {
       .filter((_, j) => j !== i)
       .map(n => `<option value="${escHtml(n)}" ${n === m.manager ? 'selected' : ''}>${escHtml(n)}</option>`)
       .join('');
-    const memberStatus = m.status || 'current';
     return `
       <tr>
         <td><input type="text"  class="admin-input admin-name"    value="${escHtml(m.name)}"        placeholder="Full Name" /></td>
         <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
-        <td><select class="admin-input admin-status">
-          <option value="current"  ${memberStatus === 'current'  ? 'selected' : ''}>Current</option>
-          <option value="former"   ${memberStatus === 'former'   ? 'selected' : ''}>Former</option>
-        </select></td>
-        <td><button class="admin-remove-btn" type="button" title="Remove">✕</button></td>
+        <td><button class="admin-remove-btn" type="button" title="Mark as former employee">✕</button></td>
       </tr>`;
   }
 
@@ -717,12 +712,11 @@ function saveAdminChanges() {
     if (!nameEl) return; // skip toggle row
     const name    = nameEl.value.trim();
     const manager = row.querySelector('.admin-manager').value;
-    const status  = row.querySelector('.admin-status').value || 'current';
     if (name) {
-      const existing = getTeamConfig().members.find(m => m.name === name);
-      const parts    = name.trim().split(/\s+/);
+      const existing  = getTeamConfig().members.find(m => m.name === name);
+      const parts     = name.trim().split(/\s+/);
       const autoEmail = parts.length >= 2 ? `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}@elementthree.com` : '';
-      members.push({ name, email: existing?.email || autoEmail, manager, status });
+      members.push({ name, email: existing?.email || autoEmail, manager, status: 'current' });
     }
   });
   const config = getTeamConfig();
@@ -1600,17 +1594,23 @@ async function init() {
     tr.innerHTML = `
       <td><input type="text"  class="admin-input admin-name"    value="" placeholder="Full Name" /></td>
       <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
-      <td><select class="admin-input admin-status">
-        <option value="current" selected>Current</option>
-        <option value="former">Former</option>
-      </select></td>
-      <td><button class="admin-remove-btn" type="button" title="Remove">✕</button></td>`;
+      <td><button class="admin-remove-btn" type="button" title="Mark as former employee">✕</button></td>`;
     document.getElementById('admin-tbody').appendChild(tr);
     tr.querySelector('.admin-name').focus();
   });
   document.getElementById('admin-tbody').addEventListener('click', e => {
     if (e.target.classList.contains('admin-remove-btn') && !e.target.classList.contains('admin-role-remove-btn')) {
-      e.target.closest('tr').remove();
+      const name = e.target.closest('tr').querySelector('.admin-name').value.trim();
+      if (name) {
+        const config = getTeamConfig();
+        const member = config.members.find(m => m.name === name);
+        if (member) member.status = 'former';
+        else config.members.push({ name, email: '', manager: '', status: 'former' });
+        saveTeamConfig(config);
+        populateTeamDropdowns();
+        populateDashboardFilters();
+        renderAdminPage();
+      }
     }
   });
 
