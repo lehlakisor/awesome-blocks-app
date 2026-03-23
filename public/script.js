@@ -684,7 +684,6 @@ function renderAdminPage() {
     return `
       <tr>
         <td><input type="text"  class="admin-input admin-name"    value="${escHtml(m.name)}"        placeholder="Full Name" /></td>
-        <td><input type="email" class="admin-input admin-email"   value="${escHtml(m.email || '')}" placeholder="name@elementthree.com" /></td>
         <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
         <td><select class="admin-input admin-status">
           <option value="current"  ${memberStatus === 'current'  ? 'selected' : ''}>Current</option>
@@ -725,10 +724,12 @@ function saveAdminChanges() {
   const members = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
     const name    = row.querySelector('.admin-name').value.trim();
-    const email   = row.querySelector('.admin-email').value.trim();
     const manager = row.querySelector('.admin-manager').value;
     const status  = row.querySelector('.admin-status').value || 'current';
-    if (name) members.push({ name, email, manager, status });
+    if (name) {
+      const existing = getTeamConfig().members.find(m => m.name === name);
+      members.push({ name, email: existing?.email || '', manager, status });
+    }
   });
   const config = getTeamConfig();
   saveTeamConfig({ ...config, members });
@@ -1594,7 +1595,6 @@ async function init() {
     const managerOpts = names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
     tr.innerHTML = `
       <td><input type="text"  class="admin-input admin-name"    value="" placeholder="Full Name" /></td>
-      <td><input type="email" class="admin-input admin-email"   value="" placeholder="name@elementthree.com" /></td>
       <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
       <td><select class="admin-input admin-status">
         <option value="current" selected>Current</option>
