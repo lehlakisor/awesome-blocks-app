@@ -933,16 +933,12 @@ function downloadCSV() {
   URL.revokeObjectURL(url);
 }
 function populateDashboardFilters() {
-  const allMembers    = getTeamConfig().members;
-  const currentNames  = allMembers.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort();
-  const allNames      = allMembers.map(m => m.name).filter(Boolean).sort();
-
-  const namesByFilter = { 'filter-received-by': currentNames, 'filter-given-by': allNames };
-  Object.entries(namesByFilter).forEach(([id, names]) => {
+  const currentNames = getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean).sort();
+  ['filter-received-by', 'filter-given-by'].forEach(id => {
     const sel = document.getElementById(id);
     const cur = sel.value;
     sel.innerHTML = `<option value="">Everyone</option>`;
-    names.forEach(name => {
+    currentNames.forEach(name => {
       const opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
