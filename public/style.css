@@ -1214,7 +1214,8 @@ td {
 
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--off-white); }
-td.msg { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+td.msg { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+td.msg.msg-expanded { white-space: normal; overflow: visible; text-overflow: unset; }
 
 /* ═══════════════════════════════════════════
    RESPONSIVE

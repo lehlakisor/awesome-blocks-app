@@ -1100,7 +1100,7 @@ function renderDashboardTable(subs) {
         <td>${escHtml(s.giver)}</td>
         <td>${escHtml(s.awardee)}</td>
         <td><span class="tag tag-value" style="font-size:11px">${escHtml(s.value)}</span></td>
-        <td class="msg" title="${escHtml(s.message)}">${escHtml(s.message)}</td>
+        <td class="msg" title="Click to expand">${escHtml(s.message)}</td>
         ${editBtn}
       </tr>`;
   }).join('');
@@ -1656,8 +1656,10 @@ async function init() {
   document.getElementById('dashboard-tbody').addEventListener('click', e => {
     const editBtn   = e.target.closest('.edit-sub-btn');
     const deleteBtn = e.target.closest('.delete-sub-btn');
+    const msgCell   = e.target.closest('td.msg');
     if (editBtn)   openEditSubmission(Number(editBtn.dataset.id));
     if (deleteBtn) deleteSubmission(Number(deleteBtn.dataset.id));
+    if (msgCell)   msgCell.classList.toggle('msg-expanded');
   });
 
   initEditModal();
