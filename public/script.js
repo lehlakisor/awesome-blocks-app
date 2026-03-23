@@ -647,7 +647,6 @@ function renderAdminPage() {
   renderPendingQueue();
   const config       = getTeamConfig();
   const members      = config.members;
-  const names        = members.map(m => m.name).filter(Boolean);
   const currentNames = members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean);
 
   // Admin roles table
@@ -675,9 +674,9 @@ function renderAdminPage() {
   // Members table
   const tbody = document.getElementById('admin-tbody');
 
-  function memberRow(m, i) {
-    const managerOpts = names
-      .filter((_, j) => j !== i)
+  function memberRow(m) {
+    const managerOpts = currentNames
+      .filter(n => n !== m.name)
       .map(n => `<option value="${escHtml(n)}" ${n === m.manager ? 'selected' : ''}>${escHtml(n)}</option>`)
       .join('');
     return `
@@ -692,7 +691,7 @@ function renderAdminPage() {
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => (m.status || 'current') === 'current' && m.name)
     .sort((a, b) => a.m.name.localeCompare(b.m.name))
-    .map(({ m, i }) => memberRow(m, i))
+    .map(({ m }) => memberRow(m))
     .join('');
 
   tbody.innerHTML = currentRows;
