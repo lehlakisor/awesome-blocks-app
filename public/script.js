@@ -1070,7 +1070,7 @@ function renderBarChart(containerId, entries, maxItems) {
     return;
   }
 
-  const maxVal = top[0][1];
+  const maxVal = Math.max(...top.map(([, v]) => v), 1);
   el.innerHTML = top.map(([label, count]) => `
     <div class="bar-row">
       <div class="bar-label" title="${escHtml(label)}">${escHtml(label)}</div>
