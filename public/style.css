@@ -418,7 +418,7 @@ textarea { resize: vertical; min-height: 100px; }
 
 .value-desc {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--charcoal);
   line-height: 1.7;
 }
 
