@@ -152,10 +152,14 @@ function getTeamConfig() {
   return STATE.teamConfig || { members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })), adminRoles: [] };
 }
 
+let _saveConfigQueue = Promise.resolve();
 function saveTeamConfig(config) {
   STATE.teamConfig = config;
-  fetch('/api/team-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) })
-    .catch(err => console.error('Failed to save team config:', err));
+  const snapshot = JSON.stringify(config);
+  _saveConfigQueue = _saveConfigQueue.then(() =>
+    fetch('/api/team-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: snapshot })
+      .catch(err => console.error('Failed to save team config:', err))
+  );
 }
 
 function getTeamMemberNames() {
