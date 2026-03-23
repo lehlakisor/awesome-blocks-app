@@ -722,14 +722,6 @@ function renderAdminPage() {
 }
 
 function saveAdminChanges() {
-  const adminRoles = [];
-  document.querySelectorAll('#admin-roles-tbody tr').forEach(row => {
-    const nameEl = row.querySelector('.admin-role-name');
-    const roleEl = row.querySelector('.admin-role-type');
-    if (nameEl && roleEl && nameEl.value) {
-      adminRoles.push({ name: nameEl.value, role: roleEl.value });
-    }
-  });
   const members = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
     const name    = row.querySelector('.admin-name').value.trim();
@@ -738,7 +730,8 @@ function saveAdminChanges() {
     const status  = row.querySelector('.admin-status').value || 'current';
     if (name) members.push({ name, email, manager, status });
   });
-  saveTeamConfig({ members, adminRoles });
+  const config = getTeamConfig();
+  saveTeamConfig({ ...config, members });
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
