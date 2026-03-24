@@ -1165,6 +1165,18 @@ textarea { resize: vertical; min-height: 100px; }
 /* Dashboard Table */
 .recent-table-card { margin-bottom: 0; }
 
+#dashboard-table { table-layout: fixed; }
+#dashboard-table th:nth-child(1),
+#dashboard-table td:nth-child(1) { width: 90px; }   /* Date */
+#dashboard-table th:nth-child(2),
+#dashboard-table td:nth-child(2) { width: 110px; }  /* From */
+#dashboard-table th:nth-child(3),
+#dashboard-table td:nth-child(3) { width: 110px; }  /* To */
+#dashboard-table th:nth-child(4),
+#dashboard-table td:nth-child(4) { width: 130px; }  /* Value */
+#dashboard-table th:nth-child(6),
+#dashboard-table td:nth-child(6) { width: 64px; }   /* Actions */
+
 .table-header {
   display: flex;
   align-items: center;
