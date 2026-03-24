@@ -212,21 +212,36 @@ function logout() {
 /* ═══════════════════════════════════════════
    GOOGLE SIGN-IN
    ═══════════════════════════════════════════ */
+function emailVariants(name) {
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0].toLowerCase();
+  const last  = parts[parts.length - 1].toLowerCase();
+  return [
+    `${first}@elementthree.com`,
+    `${first}.${last}@elementthree.com`,
+    `${first}@discoverelementthree.com`,
+    `${first}.${last}@discoverelementthree.com`,
+  ];
+}
+
 function handleGoogleSignIn(response) {
   try {
     // Decode the JWT payload (middle segment, base64url encoded)
     const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
     const email = payload.email;
-    if (!email.toLowerCase().endsWith('@elementthree.com')) {
+    const emailLower = email.toLowerCase();
+    if (!emailLower.endsWith('@elementthree.com') && !emailLower.endsWith('@discoverelementthree.com')) {
       const errEl = document.getElementById('google-login-error');
       errEl.textContent = 'Only @elementthree.com accounts can access this app.';
       errEl.classList.remove('hidden');
       return;
     }
     const config = getTeamConfig();
-    const member = config.members.find(
-      m => m.email && m.email.toLowerCase() === email.toLowerCase() && m.status !== 'former'
-    );
+    const member = config.members.find(m => {
+      if (m.status === 'former') return false;
+      if (m.email && m.email.toLowerCase() === emailLower) return true;
+      return emailVariants(m.name).includes(emailLower);
+    });
     if (member) {
       login(member.name);
     } else {
