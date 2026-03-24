@@ -1122,6 +1122,8 @@ function renderMonthlyChart(subs = STATE.submissions) {
 function renderDashboardTable(subs) {
   const tbody     = document.getElementById('dashboard-tbody');
   const adminMode = isAdminUnlocked();
+  const actionsHdr = document.getElementById('dashboard-actions-th');
+  if (actionsHdr) actionsHdr.classList.toggle('hidden', !adminMode);
   const colSpan   = adminMode ? 6 : 5;
   if (!subs.length) {
     tbody.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state">No Awesome Block Submissions yet.</td></tr>`;
@@ -1571,6 +1573,7 @@ async function init() {
     if (pw === CONFIG.ADMIN_PASSWORD) {
       sessionStorage.setItem('ab_admin_auth', 'true');
       renderAdminGate();
+      renderDashboard();
     } else {
       document.getElementById('admin-gate-error').classList.remove('hidden');
       document.getElementById('admin-gate-password').value = '';
