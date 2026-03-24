@@ -1526,28 +1526,8 @@ async function init() {
     showLogin();
   }
 
-  // Initialize Google Sign-In (shows Google button and hides name picker if CLIENT_ID is set)
+  // Initialize Google Sign-In
   initGoogleSignIn();
-
-  // Populate login name dropdown (fallback / local dev)
-  const loginNameSel = document.getElementById('login-name');
-  getTeamMemberNames().forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    loginNameSel.appendChild(opt);
-  });
-
-  // Login form
-  document.getElementById('login-form').addEventListener('submit', e => {
-    e.preventDefault();
-    const name = document.getElementById('login-name').value;
-    if (name) {
-      login(name);
-    } else {
-      document.getElementById('login-error').classList.remove('hidden');
-    }
-  });
 
   // Logout
   document.getElementById('logout-btn').addEventListener('click', logout);
