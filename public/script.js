@@ -240,6 +240,7 @@ function handleGoogleSignIn(response) {
     const member = config.members.find(m => {
       if (m.status === 'former') return false;
       if (m.email && m.email.toLowerCase() === emailLower) return true;
+      if ((m.aliases || []).some(a => a.toLowerCase() === emailLower)) return true;
       return emailVariants(m.name).includes(emailLower);
     });
     if (member) {
