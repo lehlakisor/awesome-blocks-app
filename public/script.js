@@ -15,7 +15,7 @@ const CONFIG = {
   // Get one at console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client ID.
   // Add your domain (e.g. https://awesome.elementthree.com) to Authorized JavaScript Origins.
   // Leave as 'YOUR_GOOGLE_CLIENT_ID_HERE' to fall back to the name-picker login during local dev.
-  GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID_HERE',
+  GOOGLE_CLIENT_ID: '628098551690-4manh4fk4tmubbh3caeimtljmsf9bte9.apps.googleusercontent.com',
 
   // Paste your Google Apps Script web app URL here (see setup instructions).
   // This single URL handles both submission logging and milestone emails.
@@ -217,6 +217,12 @@ function handleGoogleSignIn(response) {
     // Decode the JWT payload (middle segment, base64url encoded)
     const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
     const email = payload.email;
+    if (!email.toLowerCase().endsWith('@elementthree.com')) {
+      const errEl = document.getElementById('google-login-error');
+      errEl.textContent = 'Only @elementthree.com accounts can access this app.';
+      errEl.classList.remove('hidden');
+      return;
+    }
     const config = getTeamConfig();
     const member = config.members.find(
       m => m.email && m.email.toLowerCase() === email.toLowerCase() && m.status !== 'former'
@@ -225,7 +231,7 @@ function handleGoogleSignIn(response) {
       login(member.name);
     } else {
       const errEl = document.getElementById('google-login-error');
-      errEl.textContent = `Your Google account (${email}) isn't linked to a team member. Ask an admin to add your email in Team Settings.`;
+      errEl.textContent = `Your account (${email}) isn't linked to a team member. Ask an admin to check your email in Team Settings.`;
       errEl.classList.remove('hidden');
     }
   } catch (e) {
