@@ -23,14 +23,14 @@
         <p>Employee Recognition Portal</p>
       </div>
       <!-- Google Sign-In (shown when GOOGLE_CLIENT_ID is configured) -->
-      <div id="google-signin-section" class="hidden">
+      <div id="google-signin-section">
         <p class="login-google-prompt">Sign in with your Element Three Google account.</p>
         <div id="google-signin-btn" class="google-btn-wrap"></div>
         <p id="google-login-error" class="error hidden"></p>
       </div>
 
       <!-- Name picker fallback (used locally before Google is configured) -->
-      <form id="login-form">
+      <form id="login-form" class="hidden">
         <div class="field">
           <label for="login-name">Who are you?</label>
           <select id="login-name" required>
