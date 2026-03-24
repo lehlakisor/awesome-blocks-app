@@ -1686,57 +1686,6 @@ async function init() {
   // CSV download
   document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
 
-  // CSV import — points balance
-  const importPointsFile = document.getElementById('import-points-file');
-  document.getElementById('import-points-btn').addEventListener('click', () => importPointsFile.click());
-  importPointsFile.addEventListener('change', () => {
-    if (importPointsFile.files[0]) {
-      handlePointsImport(importPointsFile.files[0]);
-      importPointsFile.value = '';
-    }
-  });
-
-  // CSV import — submissions
-  const importSubsFile = document.getElementById('import-submissions-file');
-  document.getElementById('import-submissions-btn').addEventListener('click', () => importSubsFile.click());
-  importSubsFile.addEventListener('change', () => {
-    if (importSubsFile.files[0]) {
-      handleSubmissionsImport(importSubsFile.files[0]);
-      importSubsFile.value = '';
-    }
-  });
-
-  // Export team config
-  document.getElementById('export-team-config-btn').addEventListener('click', () => {
-    const config = getTeamConfig();
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'team-config.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-
-  // Import team config
-  const importTeamConfigFile = document.getElementById('import-team-config-file');
-  document.getElementById('import-team-config-btn').addEventListener('click', () => importTeamConfigFile.click());
-  importTeamConfigFile.addEventListener('change', () => {
-    const file = importTeamConfigFile.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const config = JSON.parse(e.target.result);
-        saveTeamConfig(config);
-        showImportStatus('✓ Team config imported.');
-        renderAdminPage();
-      } catch {
-        showImportStatus('✗ Invalid JSON file.', true);
-      }
-    };
-    reader.readAsText(file);
-    importTeamConfigFile.value = '';
-  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
