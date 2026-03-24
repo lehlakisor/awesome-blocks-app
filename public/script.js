@@ -599,6 +599,40 @@ async function sendCashBonusMilestone(awardeeName, thresholdPts, dollarAmount) {
   }
 }
 
+async function sendPointsMilestone(awardeeName, thresholdPts) {
+  if (!CONFIG.GOOGLE_SCRIPT_URL || CONFIG.GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) return;
+  const config        = getTeamConfig();
+  const find          = name => config.members.find(m => m.name === name) || {};
+  const awardee       = find(awardeeName);
+  const manager       = find(awardee.manager);
+  const financeAdmins = getAdminsByRole('finance');
+  const adminAdmins   = getAdminsByRole('admin');
+  const allRecipients = [...new Map(
+    [...financeAdmins, ...adminAdmins, ...(manager.email ? [manager] : [])]
+      .map(p => [p.email, p])
+  ).values()].filter(p => p.email);
+  if (!allRecipients.length) return;
+  const payload = {
+    type:             'points_milestone',
+    awardee_name:     awardeeName,
+    awardee_email:    awardee.email   || '',
+    manager_name:     awardee.manager || '',
+    manager_email:    manager.email   || '',
+    finance_emails:   allRecipients.map(p => p.email).join(','),
+    threshold_points: thresholdPts,
+  };
+  try {
+    await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('Points milestone send failed:', err);
+  }
+}
+
 async function sendPendingNotification(submission) {
   if (!CONFIG.GOOGLE_SCRIPT_URL || CONFIG.GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) return;
   const adminPeople = getAdminsByRole('admin').filter(a => a.email);
@@ -791,13 +825,8 @@ async function approveSubmission(id) {
   const awardeeTotal = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
   if (awardeeTotal % 50 === 0) sendMilestoneToZapier(sub.awardee, awardeeTotal);
 
-  // Check cash bonus milestones (Finance role recipients)
-  const CASH_THRESHOLDS = [
-    { pts: 300, dollars: 100 },
-    { pts: 500, dollars: 150 },
-    { pts: 750, dollars: 200 },
-    { pts: 1000, dollars: 250 },
-  ];
+  // Check point milestones — every 50pts, with cash bonuses at 300/500/750/1000
+  const CASH_BONUSES    = { 300: 100, 500: 150, 750: 200, 1000: 250 };
   const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
   const newTotalPts     = approvedCount * 5;
   const prevTotalPts    = newTotalPts - 5;
@@ -805,13 +834,15 @@ async function approveSubmission(id) {
   const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
   let newlyFired        = false;
 
-  CASH_THRESHOLDS.forEach(({ pts, dollars }) => {
-    if (prevTotalPts < pts && newTotalPts >= pts && !alreadyFired.has(pts)) {
+  for (let pts = 50; pts <= newTotalPts; pts += 50) {
+    if (prevTotalPts < pts && !alreadyFired.has(pts)) {
       alreadyFired.add(pts);
       newlyFired = true;
-      sendCashBonusMilestone(sub.awardee, pts, dollars);
+      const dollars = CASH_BONUSES[pts];
+      if (dollars) sendCashBonusMilestone(sub.awardee, pts, dollars);
+      else         sendPointsMilestone(sub.awardee, pts);
     }
-  });
+  }
 
   if (newlyFired) {
     firedMilestones[sub.awardee] = [...alreadyFired];
@@ -833,16 +864,15 @@ function approveSubmissionSilent(id) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sub),
   }).catch(err => console.error('Failed to update submission:', err));
-  // Update cash milestone tracking without sending any emails
-  const CASH_THRESHOLDS = [{ pts: 300 }, { pts: 500 }, { pts: 750 }, { pts: 1000 }];
-  const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
-  const newTotalPts   = approvedCount * 5;
+  // Update milestone tracking without sending any emails
+  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const newTotalPts     = approvedCount * 5;
   const firedMilestones = loadCashMilestones();
   const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
   let changed = false;
-  CASH_THRESHOLDS.forEach(({ pts }) => {
-    if (newTotalPts >= pts && !alreadyFired.has(pts)) { alreadyFired.add(pts); changed = true; }
-  });
+  for (let pts = 50; pts <= newTotalPts; pts += 50) {
+    if (!alreadyFired.has(pts)) { alreadyFired.add(pts); changed = true; }
+  }
   if (changed) { firedMilestones[sub.awardee] = [...alreadyFired]; saveCashMilestones(firedMilestones); }
   renderPendingQueue();
   renderDashboard();
@@ -1211,7 +1241,7 @@ function deleteSubmission(id) {
     const newTotalPts = approvedCount * 5;
     const firedMilestones = loadCashMilestones();
     const fired = new Set(firedMilestones[sub.awardee] || []);
-    [300, 500, 750, 1000].forEach(pts => { if (newTotalPts < pts) fired.delete(pts); });
+    for (let pts = 50; pts <= newTotalPts + 50; pts += 50) { if (newTotalPts < pts) fired.delete(pts); }
     firedMilestones[sub.awardee] = [...fired];
     saveCashMilestones(firedMilestones);
   }
