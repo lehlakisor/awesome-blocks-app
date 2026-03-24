@@ -254,11 +254,7 @@ function setupGoogleSignIn(clientId) {
 
 function initGoogleSignIn() {
   const clientId = CONFIG.GOOGLE_CLIENT_ID;
-  if (!clientId || clientId === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
-    document.getElementById('google-signin-section').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    return;
-  }
+  if (!clientId || clientId === 'YOUR_GOOGLE_CLIENT_ID_HERE') return;
 
   if (typeof google !== 'undefined' && google.accounts) {
     setupGoogleSignIn(clientId);
