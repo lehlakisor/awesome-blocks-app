@@ -809,7 +809,7 @@ function renderPendingQueue() {
           <span class="tag tag-value" style="font-size:11px">${escHtml(s.value)}</span>
           <span class="pending-date">${date}</span>
         </div>
-        <p class="pending-message">"${escHtml(s.message)}"</p>
+        <p class="pending-message">${escHtml(s.message)}</p>
         <div class="pending-actions">
           <button class="btn btn-primary pending-approve-btn" data-id="${s.id}">Approve</button>
           ${s.imported ? `<button class="btn btn-secondary pending-approve-silent-btn" data-id="${s.id}">Approve (no email)</button>` : ''}
