@@ -779,18 +779,16 @@ function saveAdminChanges(silent = false) {
   const config = getTeamConfig();
   const formerMembers = config.members.filter(m => m.status === 'former');
   saveTeamConfig({ ...config, members: [...members, ...formerMembers] });
+  if (!silent) {
+    const status = document.getElementById('admin-save-status');
+    status.textContent = `✓ Saved — ${members.length} team members`;
+    status.className = 'import-status import-ok';
+    status.classList.remove('hidden');
+    setTimeout(() => status.classList.add('hidden'), 4000);
+  }
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
-  if (!silent) {
-    setTimeout(() => {
-      const status = document.getElementById('admin-save-status');
-      status.textContent = `✓ Saved — ${members.length} team members`;
-      status.className = 'import-status import-ok';
-      status.classList.remove('hidden');
-      setTimeout(() => status.classList.add('hidden'), 4000);
-    }, 0);
-  }
 }
 
 function renderPendingQueue() {
