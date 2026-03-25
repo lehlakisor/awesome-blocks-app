@@ -779,16 +779,10 @@ function saveAdminChanges(silent = false) {
   const config = getTeamConfig();
   const formerMembers = config.members.filter(m => m.status === 'former');
   saveTeamConfig({ ...config, members: [...members, ...formerMembers] });
-  if (!silent) {
-    const status = document.getElementById('admin-save-status');
-    status.textContent = `✓ Saved — ${members.length} team members`;
-    status.className = 'import-status import-ok';
-    status.classList.remove('hidden');
-    setTimeout(() => status.classList.add('hidden'), 4000);
-  }
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
+  if (!silent) showToast(`✓ Saved — ${members.length} team members`);
 }
 
 function renderPendingQueue() {
@@ -1496,6 +1490,15 @@ function initDatePicker() {
 /* ═══════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════ */
+let _toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('toast-show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('toast-show'), 3000);
+}
+
 function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -1682,11 +1685,7 @@ async function init() {
     });
     const config = getTeamConfig();
     saveTeamConfig({ ...config, adminRoles });
-    const status = document.getElementById('admin-roles-save-status');
-    status.textContent = `✓ Saved — ${adminRoles.length} ${adminRoles.length === 1 ? 'admin' : 'admins'}`;
-    status.className = 'import-status import-ok';
-    status.classList.remove('hidden');
-    setTimeout(() => status.classList.add('hidden'), 4000);
+    showToast(`✓ Saved — ${adminRoles.length} ${adminRoles.length === 1 ? 'admin' : 'admins'}`);
   });
 
   // Edit submission buttons (admin only)
