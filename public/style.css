@@ -910,9 +910,9 @@ textarea { resize: vertical; min-height: 100px; }
   transition: border-color 0.15s, background 0.15s;
 }
 .btn-import:hover { border-color: var(--charcoal); background: var(--light-gray); }
-.import-status { font-size: 13px; font-weight: 500; }
-.import-status.import-ok    { color: #2a9d3e; }
-.import-status.import-error { color: var(--red); }
+.import-status { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: var(--radius); }
+.import-status.import-ok    { color: #1a6e2e; background: #d4f0db; }
+.import-status.import-error { color: #a00; background: #ffe0e0; }
 
 /* ── Date Presets ── */
 .date-presets {
