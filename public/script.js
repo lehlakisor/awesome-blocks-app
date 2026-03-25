@@ -1600,7 +1600,7 @@ async function init() {
   });
 
   // Admin page
-  document.getElementById('admin-save-btn').addEventListener('click', saveAdminChanges);
+  document.getElementById('admin-save-btn').addEventListener('click', () => saveAdminChanges());
 
   document.getElementById('restore-former-btn').addEventListener('click', () => {
     const sel  = document.getElementById('restore-former-select');
