@@ -783,11 +783,13 @@ function saveAdminChanges(silent = false) {
   populateDashboardFilters();
   renderAdminPage();
   if (!silent) {
-    const status = document.getElementById('admin-save-status');
-    status.textContent = `✓ Saved — ${members.length} team members`;
-    status.className = 'import-status import-ok';
-    status.classList.remove('hidden');
-    setTimeout(() => status.classList.add('hidden'), 4000);
+    setTimeout(() => {
+      const status = document.getElementById('admin-save-status');
+      status.textContent = `✓ Saved — ${members.length} team members`;
+      status.className = 'import-status import-ok';
+      status.classList.remove('hidden');
+      setTimeout(() => status.classList.add('hidden'), 4000);
+    }, 0);
   }
 }
 
