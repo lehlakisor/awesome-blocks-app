@@ -919,6 +919,7 @@ function renderFeed() {
 
   let items = STATE.submissions.filter(s => {
     if (s.status === 'pending' || s.status === 'rejected') return false;
+    if (s.giver === '[Adjustment]') return false;
     if (formerNames.has(s.awardee)) return false;
     const matchSearch = !searchVal ||
       s.giver.toLowerCase().includes(searchVal) ||
@@ -1023,12 +1024,10 @@ function renderDashboard() {
     inDateRange(s) &&
     !formerNames.has(s.awardee)
   );
-  const ledgerBonus = (filterTo && !DATE_RANGE.start) ? (STATE.pointsLedger[filterTo] || 0) : 0;
-  const totalPoints = receivedSubs.length * 5 + ledgerBonus;
-  document.getElementById('stat-received').textContent      = totalPoints / 5;
-  document.getElementById('stat-points').textContent        = totalPoints;
+  document.getElementById('stat-received').textContent      = receivedSubs.length;
+  document.getElementById('stat-points').textContent        = receivedSubs.length * 5;
   document.getElementById('stat-received-month').textContent = receivedSubs.filter(isThisMonth).length;
-  document.getElementById('stat-recognized-by').textContent = new Set(receivedSubs.map(s => s.giver)).size;
+  document.getElementById('stat-recognized-by').textContent = new Set(receivedSubs.filter(s => s.giver !== '[Adjustment]').map(s => s.giver)).size;
 
   // ── Given card stats (independent of filterTo) ──
   const givenSubs = subs.filter(s =>
@@ -1056,7 +1055,7 @@ function renderDashboard() {
     filterTo ? `Who recognized ${filterTo.split(' ')[0]}` : 'Top Givers';
 
   const currentNames = new Set(getTeamConfig().members.filter(m => (m.status || 'current') === 'current').map(m => m.name));
-  const chartFiltered = filtered.filter(s => currentNames.has(s.awardee) && currentNames.has(s.giver));
+  const chartFiltered = filtered.filter(s => currentNames.has(s.awardee) && currentNames.has(s.giver) && s.giver !== '[Adjustment]');
   renderBarChart('chart-top-recipients', countBy(chartFiltered, 'awardee'), 5);
   const jan2026 = new Date('2026-01-29').getTime();
   renderBarChart('chart-by-value',       countBy(filtered.filter(s => new Date(s.timestamp).getTime() >= jan2026), 'value'), 6);
@@ -1077,8 +1076,8 @@ function renderDashboard() {
   document.getElementById('table-title').textContent =
     parts.length ? `Awards · ${parts.join(' · ')}` : 'All Awesome Block Submissions';
 
-  lastFilteredSubs = filtered;
-  renderDashboardTable(filtered);
+  lastFilteredSubs = filtered.filter(s => s.giver !== '[Adjustment]');
+  renderDashboardTable(lastFilteredSubs);
 }
 
 function countBy(arr, key) {
