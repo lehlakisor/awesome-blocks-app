@@ -835,12 +835,13 @@ async function approveSubmission(id) {
   sendToZapier(sub);
 
   // Check 50-award milestone
-  const awardeeTotal = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+  const awardeeTotal = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
   if (awardeeTotal % 50 === 0) sendMilestoneToZapier(sub.awardee, awardeeTotal);
 
   // Check point milestones — every 50pts, with cash bonuses at 300/500/750/1000
   const CASH_BONUSES    = { 300: 100, 500: 150, 750: 200, 1000: 250 };
-  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
   const newTotalPts     = approvedCount * 5;
   const prevTotalPts    = newTotalPts - 5;
   const firedMilestones = loadCashMilestones();
@@ -878,7 +879,8 @@ function approveSubmissionSilent(id) {
     body: JSON.stringify(sub),
   }).catch(err => console.error('Failed to update submission:', err));
   // Update milestone tracking without sending any emails
-  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+  const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
   const newTotalPts     = approvedCount * 5;
   const firedMilestones = loadCashMilestones();
   const alreadyFired    = new Set(firedMilestones[sub.awardee] || []);
@@ -1253,7 +1255,8 @@ function deleteSubmission(id) {
     .catch(err => console.error('Failed to delete submission:', err));
   // Clear any cash milestones the person has now dropped below
   if (sub) {
-    const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && s.status === 'approved').length;
+    const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+    const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
     const newTotalPts = approvedCount * 5;
     const firedMilestones = loadCashMilestones();
     const fired = new Set(firedMilestones[sub.awardee] || []);
