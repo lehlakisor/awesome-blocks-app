@@ -1024,7 +1024,7 @@ function renderDashboard() {
     !formerNames.has(s.awardee)
   );
   document.getElementById('stat-received').textContent      = receivedSubs.length;
-  const ledgerBonus = filterTo ? (STATE.pointsLedger[filterTo] || 0) : 0;
+  const ledgerBonus = (filterTo && !DATE_RANGE.start) ? (STATE.pointsLedger[filterTo] || 0) : 0;
   document.getElementById('stat-points').textContent        = receivedSubs.length * 5 + ledgerBonus;
   document.getElementById('stat-received-month').textContent = receivedSubs.filter(isThisMonth).length;
   document.getElementById('stat-recognized-by').textContent = new Set(receivedSubs.map(s => s.giver)).size;
