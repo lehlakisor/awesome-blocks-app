@@ -1695,7 +1695,7 @@ async function init() {
     if (e.target.classList.contains('admin-role-remove-btn')) e.target.closest('tr').remove();
   });
 
-  document.getElementById('admin-roles-save-btn').addEventListener('click', () => {
+  document.getElementById('admin-roles-save-btn').addEventListener('click', async () => {
     const adminRoles = [];
     document.querySelectorAll('#admin-roles-tbody tr').forEach(row => {
       const nameEl = row.querySelector('.admin-role-name');
@@ -1704,8 +1704,15 @@ async function init() {
         adminRoles.push({ name: nameEl.value, role: roleEl.value });
       }
     });
-    const config = getTeamConfig();
-    saveTeamConfig({ ...config, adminRoles });
+    let freshConfig;
+    try {
+      const res = await fetch('/api/team-config');
+      freshConfig = await res.json();
+      STATE.teamConfig = freshConfig;
+    } catch (e) {
+      freshConfig = getTeamConfig();
+    }
+    saveTeamConfig({ ...freshConfig, adminRoles });
     showToast(`✓ Saved — ${adminRoles.length} ${adminRoles.length === 1 ? 'admin' : 'admins'}`);
   });
 
