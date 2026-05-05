@@ -77,9 +77,15 @@ app.get('/api/team-config', async (req, res) => {
 
 app.put('/api/team-config', async (req, res) => {
   try {
+    const data = req.body;
+    const current = (data.members || []).filter(m => (m.status || 'current') === 'current');
+    const former  = (data.members || []).filter(m => m.status === 'former');
+    const noManager = current.filter(m => !m.manager).length;
+    const adminRoles = (data.adminRoles || []).length;
+    console.log(`[team-config PUT] ${new Date().toISOString()} | current=${current.length} former=${former.length} adminRoles=${adminRoles} noManager=${noManager}`);
     await pool.query(
       'INSERT INTO team_config (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = $1',
-      [JSON.stringify(req.body)]
+      [JSON.stringify(data)]
     );
     res.json({ ok: true });
   } catch (err) {
