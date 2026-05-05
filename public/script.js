@@ -95,10 +95,13 @@ function loadCashMilestones() {
   return STATE.cashMilestones;
 }
 
-function saveCashMilestones(milestones) {
+async function saveCashMilestones(milestones) {
   STATE.cashMilestones = milestones;
-  fetch('/api/cash-milestones', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(milestones) })
-    .catch(err => console.error('Failed to save cash milestones:', err));
+  try {
+    await fetch('/api/cash-milestones', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(milestones) });
+  } catch (err) {
+    console.error('Failed to save cash milestones:', err);
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -855,11 +858,19 @@ async function approveSubmission(id) {
   if (!sub) return;
   sub.status = 'approved';
   saveSubmissions();
-  fetch(`/api/submissions/${sub.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sub),
-  }).catch(err => console.error('Failed to update submission:', err));
+  try {
+    await fetch(`/api/submissions/${sub.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.error('Failed to update submission:', err);
+    sub.status = 'pending';
+    showToast('⚠ Failed to approve — please try again.');
+    renderPendingQueue();
+    return;
+  }
 
   // Now send to Google Script (logs to sheet + sends email)
   sendToZapier(sub);
@@ -898,16 +909,24 @@ async function approveSubmission(id) {
   renderFeed();
 }
 
-function approveSubmissionSilent(id) {
+async function approveSubmissionSilent(id) {
   const sub = STATE.submissions.find(s => s.id === id);
   if (!sub) return;
   sub.status = 'approved';
   saveSubmissions();
-  fetch(`/api/submissions/${sub.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sub),
-  }).catch(err => console.error('Failed to update submission:', err));
+  try {
+    await fetch(`/api/submissions/${sub.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.error('Failed to update submission:', err);
+    sub.status = 'pending';
+    showToast('⚠ Failed to approve — please try again.');
+    renderPendingQueue();
+    return;
+  }
   // Update milestone tracking without sending any emails
   const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
   const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
@@ -924,17 +943,23 @@ function approveSubmissionSilent(id) {
   renderFeed();
 }
 
-function rejectSubmission(id) {
+async function rejectSubmission(id) {
   if (!confirm('Reject this submission? It will not be published.')) return;
   const sub = STATE.submissions.find(s => s.id === id);
   if (!sub) return;
   sub.status = 'rejected';
   saveSubmissions();
-  fetch(`/api/submissions/${sub.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sub),
-  }).catch(err => console.error('Failed to update submission:', err));
+  try {
+    await fetch(`/api/submissions/${sub.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.error('Failed to reject submission:', err);
+    sub.status = 'pending';
+    showToast('⚠ Failed to reject — please try again.');
+  }
   renderPendingQueue();
 }
 
@@ -1276,13 +1301,17 @@ function saveEditSubmission() {
   renderFeed();
 }
 
-function deleteSubmission(id) {
+async function deleteSubmission(id) {
   if (!confirm('Delete this Awesome Block Submission? This cannot be undone.')) return;
   const sub = STATE.submissions.find(s => s.id === id);
+  try {
+    await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.error('Failed to delete submission:', err);
+    showToast('⚠ Failed to delete — please try again.');
+    return;
+  }
   STATE.submissions = STATE.submissions.filter(s => s.id !== id);
-  saveSubmissions();
-  fetch(`/api/submissions/${id}`, { method: 'DELETE' })
-    .catch(err => console.error('Failed to delete submission:', err));
   // Clear any cash milestones the person has now dropped below
   if (sub) {
     const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';

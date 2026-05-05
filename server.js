@@ -161,17 +161,22 @@ app.get('/api/points-ledger', async (req, res) => {
 
 app.put('/api/points-ledger', async (req, res) => {
   const ledger = req.body; // { name: points, ... }
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM points_ledger');
+    await client.query('BEGIN');
+    await client.query('DELETE FROM points_ledger');
     const entries = Object.entries(ledger);
     if (entries.length) {
       const values = entries.map((_, i) => `($${i*2+1}, $${i*2+2})`).join(', ');
-      const flat = entries.flat();
-      await pool.query(`INSERT INTO points_ledger (name, points) VALUES ${values}`, flat);
+      await client.query(`INSERT INTO points_ledger (name, points) VALUES ${values}`, entries.flat());
     }
+    await client.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
