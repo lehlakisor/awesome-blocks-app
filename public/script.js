@@ -716,8 +716,55 @@ function renderAdminGate() {
   }
 }
 
+function renderDeletedSubmissions() {
+  const deleted = STATE.submissions.filter(s => s.status === 'deleted')
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const list = document.getElementById('deleted-submissions-list');
+  if (!deleted.length) {
+    list.innerHTML = '<p class="admin-note" style="padding:8px 0">No deleted submissions.</p>';
+    return;
+  }
+  list.innerHTML = deleted.map(s => {
+    const date = new Date(s.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">
+        <div>
+          <span style="color:#999;font-size:12px">${date}</span>
+          <span style="margin:0 8px;font-weight:600">${escHtml(s.giver)}</span>
+          <span style="color:#999">→</span>
+          <span style="margin:0 8px;font-weight:600">${escHtml(s.awardee)}</span>
+          <span style="color:#888;font-size:13px">${escHtml(s.value)}</span>
+        </div>
+        <button class="btn btn-secondary restore-deleted-btn" data-id="${s.id}" style="padding:4px 12px;font-size:13px">Restore</button>
+      </div>`;
+  }).join('');
+}
+
+async function restoreDeletedSubmission(id) {
+  const sub = STATE.submissions.find(s => s.id === id);
+  if (!sub) return;
+  const prevStatus = sub.status;
+  sub.status = 'pending';
+  try {
+    await fetch(`/api/submissions/${sub.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.error('Failed to restore submission:', err);
+    sub.status = prevStatus;
+    showToast('⚠ Failed to restore — please try again.');
+    return;
+  }
+  showToast('✓ Submission restored to pending queue.');
+  renderDeletedSubmissions();
+  renderPendingQueue();
+}
+
 function renderAdminPage() {
   renderPendingQueue();
+  renderDeletedSubmissions();
   const config       = getTeamConfig();
   const members      = config.members;
   const currentNames = members.filter(m => (m.status || 'current') === 'current').map(m => m.name).filter(Boolean);
@@ -1692,6 +1739,19 @@ async function init() {
       renderAdminPage();
     }
   });
+  document.getElementById('deleted-submissions-toggle').addEventListener('click', () => {
+    const body    = document.getElementById('deleted-submissions-body');
+    const chevron = document.getElementById('deleted-submissions-chevron');
+    const open    = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    chevron.textContent = open ? '▲' : '▼';
+  });
+
+  document.getElementById('deleted-submissions-list').addEventListener('click', e => {
+    const btn = e.target.closest('.restore-deleted-btn');
+    if (btn) restoreDeletedSubmission(Number(btn.dataset.id));
+  });
+
   document.getElementById('pending-list').addEventListener('click', e => {
     const approveBtn       = e.target.closest('.pending-approve-btn');
     const approveSilentBtn = e.target.closest('.pending-approve-silent-btn');
