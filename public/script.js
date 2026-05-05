@@ -876,7 +876,7 @@ async function approveSubmission(id) {
   sendToZapier(sub);
 
   // Check 50-award milestone
-  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected' && s.status !== 'deleted';
   const awardeeTotal = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
   if (awardeeTotal % 50 === 0) sendMilestoneToZapier(sub.awardee, awardeeTotal);
 
@@ -928,7 +928,7 @@ async function approveSubmissionSilent(id) {
     return;
   }
   // Update milestone tracking without sending any emails
-  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+  const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected' && s.status !== 'deleted';
   const approvedCount   = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
   const newTotalPts     = approvedCount * 5;
   const firedMilestones = loadCashMilestones();
@@ -973,7 +973,7 @@ function renderFeed() {
   const formerNames = getFormerMemberNames();
 
   let items = STATE.submissions.filter(s => {
-    if (s.status === 'pending' || s.status === 'rejected') return false;
+    if (s.status === 'pending' || s.status === 'rejected' || s.status === 'deleted') return false;
     if (s.giver === '[Adjustment]') return false;
     if (formerNames.has(s.awardee)) return false;
     const matchSearch = !searchVal ||
@@ -1050,7 +1050,7 @@ function populateDashboardFilters() {
 
 function renderDashboard() {
   const formerNames = getFormerMemberNames();
-  const subs       = STATE.submissions.filter(s => s.status !== 'pending' && s.status !== 'rejected');
+  const subs       = STATE.submissions.filter(s => s.status !== 'pending' && s.status !== 'rejected' && s.status !== 'deleted');
   const filterTo   = document.getElementById('filter-received-by').value;
   const filterFrom = document.getElementById('filter-given-by').value;
   const filterVal  = document.getElementById('filter-value').value;
@@ -1304,17 +1304,24 @@ function saveEditSubmission() {
 async function deleteSubmission(id) {
   if (!confirm('Delete this Awesome Block Submission? This cannot be undone.')) return;
   const sub = STATE.submissions.find(s => s.id === id);
+  if (!sub) return;
+  const prevStatus = sub.status;
+  sub.status = 'deleted';
   try {
-    await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
+    await fetch(`/api/submissions/${sub.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub),
+    });
   } catch (err) {
     console.error('Failed to delete submission:', err);
+    sub.status = prevStatus;
     showToast('⚠ Failed to delete — please try again.');
     return;
   }
-  STATE.submissions = STATE.submissions.filter(s => s.id !== id);
   // Clear any cash milestones the person has now dropped below
   if (sub) {
-    const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected';
+    const isAccepted = s => s.status !== 'pending' && s.status !== 'rejected' && s.status !== 'deleted';
     const approvedCount = STATE.submissions.filter(s => s.awardee === sub.awardee && isAccepted(s)).length;
     const newTotalPts = approvedCount * 5;
     const firedMilestones = loadCashMilestones();
