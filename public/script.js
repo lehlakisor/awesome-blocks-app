@@ -386,19 +386,32 @@ async function handleAwardSubmit(e) {
     status:    'pending',
   };
 
-  // Save locally — email + feed publish happen only after admin approves
-  STATE.submissions.unshift(submission);
-  saveSubmissions();
-  fetch('/api/submissions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(submission),
-  }).catch(err => console.error('Failed to save submission:', err));
-
-  // Notify admin that there's a pending submission to review
-  sendPendingNotification(submission);
+  // Save to DB — retry once on failure before giving up
+  let saved = false;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+      if (res.ok) { saved = true; break; }
+    } catch (err) {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+    }
+  }
 
   setSubmitLoading(false);
+
+  if (!saved) {
+    showFormError('Something went wrong saving your submission. Please try again.');
+    return;
+  }
+
+  STATE.submissions.unshift(submission);
+
+  // Notify admins now that the submission is confirmed in the DB
+  sendPendingNotification(submission);
 
   // Reset form
   e.target.reset();
