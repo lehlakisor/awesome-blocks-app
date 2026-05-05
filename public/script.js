@@ -766,23 +766,36 @@ function renderAdminPage() {
   }
 }
 
-function saveAdminChanges(silent = false) {
-  const members = [];
+async function saveAdminChanges(silent = false) {
+  // Capture DOM values before the async fetch so nothing changes mid-save
+  const domRows = [];
   document.querySelectorAll('#admin-tbody tr').forEach(row => {
     const nameEl = row.querySelector('.admin-name');
-    if (!nameEl) return; // skip toggle row
+    if (!nameEl) return;
     const name    = nameEl.value.trim();
     const manager = row.querySelector('.admin-manager').value;
-    if (name) {
-      const existing  = getTeamConfig().members.find(m => m.name === name);
-      const parts     = name.trim().split(/\s+/);
-      const autoEmail = parts.length >= 2 ? `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}@elementthree.com` : '';
-      members.push({ name, email: existing?.email || autoEmail, manager, status: 'current' });
-    }
+    if (name) domRows.push({ name, manager });
   });
-  const config = getTeamConfig();
-  const formerMembers = config.members.filter(m => m.status === 'former');
-  saveTeamConfig({ ...config, members: [...members, ...formerMembers] });
+
+  // Always fetch fresh config so we never overwrite concurrent DB changes
+  let freshConfig;
+  try {
+    const res = await fetch('/api/team-config');
+    freshConfig = await res.json();
+    STATE.teamConfig = freshConfig;
+  } catch (e) {
+    freshConfig = getTeamConfig();
+  }
+
+  const members = domRows.map(({ name, manager }) => {
+    const existing  = freshConfig.members.find(m => m.name === name);
+    const parts     = name.trim().split(/\s+/);
+    const autoEmail = parts.length >= 2 ? `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}@elementthree.com` : '';
+    return { name, email: existing?.email || autoEmail, manager, status: 'current' };
+  });
+
+  const formerMembers = freshConfig.members.filter(m => m.status === 'former');
+  saveTeamConfig({ ...freshConfig, members: [...members, ...formerMembers] });
   populateTeamDropdowns();
   populateDashboardFilters();
   renderAdminPage();
