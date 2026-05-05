@@ -1533,6 +1533,7 @@ function escHtml(str) {
    INIT
    ═══════════════════════════════════════════ */
 async function init() {
+  let configFetchOk = false;
   // Load all data from API
   try {
     const [teamConfig, submissions, pointsLedger, cashMilestones] = await Promise.all([
@@ -1541,6 +1542,7 @@ async function init() {
       fetch('/api/points-ledger').then(r => r.json()),
       fetch('/api/cash-milestones').then(r => r.json()),
     ]);
+    configFetchOk = true;
     STATE.teamConfig = Object.keys(teamConfig).length ? teamConfig : null;
     STATE.submissions = Array.isArray(submissions) ? submissions : [];
     STATE.pointsLedger = pointsLedger || {};
@@ -1549,13 +1551,16 @@ async function init() {
     console.error('Failed to load data from API:', err);
   }
 
-  // If no team config yet, seed from hardcoded list
-  if (!STATE.teamConfig) {
-    const def = {
-      members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
-      adminRoles: [],
-    };
-    saveTeamConfig(def);
+  const defaultConfig = {
+    members: CONFIG.TEAM_MEMBERS.map(name => ({ name, email: '', manager: '' })),
+    adminRoles: [],
+  };
+  if (!STATE.teamConfig && configFetchOk) {
+    // API confirmed empty DB (fresh install) — write defaults
+    saveTeamConfig(defaultConfig);
+  } else if (!STATE.teamConfig) {
+    // Fetch failed — use defaults in memory only, never overwrite the DB
+    STATE.teamConfig = defaultConfig;
   }
 
   populateTeamDropdowns();
