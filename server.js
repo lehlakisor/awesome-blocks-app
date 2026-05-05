@@ -106,6 +106,8 @@ app.get('/api/submissions', async (req, res) => {
       message: r.message,
       status: r.status,
       imported: r.imported,
+      approved_by: r.approved_by || null,
+      approved_at: r.approved_at || null,
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -126,11 +128,11 @@ app.post('/api/submissions', async (req, res) => {
 });
 
 app.put('/api/submissions/:id', async (req, res) => {
-  const { giver, awardee, value, message, status, imported } = req.body;
+  const { giver, awardee, value, message, status, imported, approved_by, approved_at } = req.body;
   try {
     await pool.query(
-      'UPDATE submissions SET giver=$1, awardee=$2, value=$3, message=$4, status=$5, imported=$6 WHERE id=$7',
-      [giver, awardee, value, message, status, imported, req.params.id]
+      'UPDATE submissions SET giver=$1, awardee=$2, value=$3, message=$4, status=$5, imported=$6, approved_by=$7, approved_at=$8 WHERE id=$9',
+      [giver, awardee, value, message, status, imported, approved_by || null, approved_at || null, req.params.id]
     );
     res.json({ ok: true });
   } catch (err) {

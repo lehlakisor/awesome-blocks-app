@@ -904,6 +904,8 @@ async function approveSubmission(id) {
   const sub = STATE.submissions.find(s => s.id === id);
   if (!sub) return;
   sub.status = 'approved';
+  sub.approved_by = getCurrentUser();
+  sub.approved_at = new Date().toISOString();
   saveSubmissions();
   try {
     await fetch(`/api/submissions/${sub.id}`, {
@@ -960,6 +962,8 @@ async function approveSubmissionSilent(id) {
   const sub = STATE.submissions.find(s => s.id === id);
   if (!sub) return;
   sub.status = 'approved';
+  sub.approved_by = getCurrentUser();
+  sub.approved_at = new Date().toISOString();
   saveSubmissions();
   try {
     await fetch(`/api/submissions/${sub.id}`, {

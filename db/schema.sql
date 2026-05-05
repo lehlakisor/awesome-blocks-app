@@ -11,8 +11,13 @@ CREATE TABLE IF NOT EXISTS submissions (
   value TEXT,
   message TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
-  imported BOOLEAN DEFAULT FALSE
+  imported BOOLEAN DEFAULT FALSE,
+  approved_by TEXT,
+  approved_at TIMESTAMPTZ
 );
+
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_by TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS points_ledger (
   name TEXT PRIMARY KEY,
