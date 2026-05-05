@@ -804,7 +804,7 @@ async function saveAdminChanges(silent = false) {
     const existing  = freshConfig.members.find(m => m.name === name);
     const parts     = name.trim().split(/\s+/);
     const autoEmail = parts.length >= 2 ? `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}@elementthree.com` : '';
-    return { name, email: existing?.email || autoEmail, manager, status: 'current' };
+    return { ...(existing || {}), name, email: existing?.email || autoEmail, manager, status: 'current' };
   });
 
   const formerMembers = freshConfig.members.filter(m => m.status === 'former');
