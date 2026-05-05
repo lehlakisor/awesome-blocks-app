@@ -13,6 +13,17 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Request logging
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    const start = Date.now();
+    res.on('finish', () => {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
+    });
+  }
+  next();
+});
+
 const TEAM_MEMBERS = [
   'Abby Hines', 'Allison Hunt', 'Amy Burklow', 'Ashley Booth', 'Bennett Clark',
   'Brian Cole', 'Cade Jones', 'Carrie Marsteller', 'Charlie May', 'Colton Angel',
@@ -216,7 +227,9 @@ app.get('*', (req, res) => {
 });
 
 initDb().then(() => {
-  app.listen(PORT, () => console.log(`Awesome Blocks running on port ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`[${new Date().toISOString()}] Awesome Blocks started on port ${PORT}`);
+  });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   process.exit(1);
