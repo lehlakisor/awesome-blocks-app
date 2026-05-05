@@ -732,14 +732,18 @@ function renderAdminPage() {
   const tbody = document.getElementById('admin-tbody');
 
   function memberRow(m) {
-    const managerOpts = currentNames
-      .filter(n => n !== m.name)
+    const filteredNames = currentNames.filter(n => n !== m.name);
+    const managerOpts = filteredNames
       .map(n => `<option value="${escHtml(n)}" ${n === m.manager ? 'selected' : ''}>${escHtml(n)}</option>`)
       .join('');
+    // If stored manager isn't in current list, add it as a selected option so it's preserved on save
+    const phantomOpt = m.manager && !filteredNames.includes(m.manager)
+      ? `<option value="${escHtml(m.manager)}" selected>${escHtml(m.manager)}</option>`
+      : '';
     return `
       <tr>
         <td><input type="text"  class="admin-input admin-name"    value="${escHtml(m.name)}"        placeholder="Full Name" /></td>
-        <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}</select></td>
+        <td><select class="admin-input admin-manager"><option value="">N/A</option>${managerOpts}${phantomOpt}</select></td>
         <td><button class="admin-remove-btn" type="button" title="Mark as former employee">✕</button></td>
       </tr>`;
   }
